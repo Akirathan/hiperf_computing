@@ -44,7 +44,7 @@ private:
     data_element compute_at_index(size_t i, size_t j) const
     {
         data_element first = results[i-1][j] + 1;
-        data_element second = results[i-1][j-1] + (array_1[i-1] == array_2[j-1] ? 0 : 1);
+        data_element second = results[i-1][j-1] + (array_1[j-1] == array_2[i-1] ? 0 : 1);
         data_element third = results[i][j-1] + 1;
 
         return std::min({first, second, third});
