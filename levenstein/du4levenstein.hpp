@@ -34,7 +34,8 @@ public:
           results_rows{array_1.size() + 1},
           results_cols{array_2.size() + 1},
           vector_stripe_left_boundary{1},
-          vector_stripe_right_boundary{results_cols - stripe_size}
+          vector_stripe_right_boundary{results_cols - stripe_size},
+          cols_left_boundary{1}
 	{
 		results.resize(results_rows);
 		for (size_t i = 0; i < results_rows; ++i) {
@@ -45,11 +46,14 @@ public:
 
 	data_element compute()
 	{
-		for (size_t i = stripe_size; i < results_rows; i += stripe_size) {
+	    size_t i = stripe_size;
+		for (; i < results_rows; i += stripe_size) {
 			compute_stripe(i);
 		}
-		// Compute rest ...
-		return 0;
+
+		i = i - stripe_size + 1;
+		compute_rest(i);
+		return results[results_rows - 1][results_cols - 1];
 	}
 
 private:
@@ -61,6 +65,7 @@ private:
 	const size_t results_cols;
 	const size_t vector_stripe_left_boundary;
 	const size_t vector_stripe_right_boundary;
+	const size_t cols_left_boundary;
 	std::vector<std::vector<data_element>> results;
 
 	/// @param i lower index of stripe's row.
@@ -71,13 +76,14 @@ private:
 		compute_first_part_of_stripe(i);
 
 		// Start vector computation.
-		for (size_t j = stripe_size; j < vector_stripe_right_boundary; ++j) {
+		for (size_t j = vector_stripe_left_boundary; j <= vector_stripe_right_boundary; ++j) {
 			compute_one_stripe_diagonal(i, j);
 		}
 
-		// TODO: Compute last part of stripe scalar.
+		compute_last_part_of_stripe(i);
 	}
 
+	/// Left upper triangle
 	void compute_first_part_of_stripe(size_t row)
 	{
 		size_t k = stripe_size - 1;
@@ -93,14 +99,44 @@ private:
 		}
 	}
 
+	void compute_last_part_of_stripe(size_t row)
+    {
+	    const size_t row_from = row - stripe_size + 2;
+	    const size_t row_until = row;
+	    const size_t operations_num_from = 1;
+	    const size_t operations_num_until = stripe_size - 1;
+	    size_t operations_num = operations_num_from;
+
+        for (size_t i = row_from; i <= row_until; ++i) {
+            for (size_t j = results_cols - operations_num; j < results_cols; ++j) {
+                compute_scalar_at_index(i, j);
+            }
+
+            operations_num++;
+            if (operations_num > operations_num_until) {
+                break;
+            }
+        }
+    }
+
+    void compute_rest(size_t row)
+    {
+	    assert(results_rows - row < stripe_size);
+        for (size_t i = row; i < results_rows; ++i) {
+            for (size_t j = cols_left_boundary; j < results_cols; ++j) {
+                compute_scalar_at_index(i, j);
+            }
+        }
+    }
+
 	void compute_scalar_at_index(size_t i, size_t j)
 	{
 		assert(i >= 1 && i < results_rows && j >= 0 && j < results_cols);
 		results[i][j] = compute_levenstein_distance(results[i-1][j],   // upper
 				                                    results[i-1][j-1], // left_upper
 				                                    results[i][j-1],   // left
-				                                    array_1[i-1],      // a
-				                                    array_2[j-1]);     // b
+				                                    array_1[j-1],      // a
+				                                    array_2[i-1]);     // b
 	}
 
 	/// Compute with vector instructions.
@@ -111,9 +147,15 @@ private:
 		vector_type vector_y = get_vector_from_diagonal(i, j - 1);
 		vector_type vector_w = get_vector_from_diagonal(i - 1, j);
 		vector_type vector_z = get_vector_from_diagonal(i - 1, j - 1);
-		// TODO: jeden zvektoru a, b obratit.
-		vector_type vector_a = get_vector_from_array_reversed(array_1, j);
-		vector_type vector_b = get_vector_from_array(array_2, i-3);
+		vector_type vector_a = get_vector_from_array(array_1, j - 1);
+		vector_type vector_b = get_vector_from_array_reversed(array_2, i - stripe_size);
+
+		// debug
+		auto arr_y = policy::copy_into_array(vector_y);
+        auto arr_w = policy::copy_into_array(vector_w);
+        auto arr_z = policy::copy_into_array(vector_z);
+        auto arr_a = policy::copy_into_array(vector_a);
+        auto arr_b = policy::copy_into_array(vector_b);
 
 		vector_type result = compute_levenstein_distance(vector_y, vector_w, vector_z, vector_a, vector_b);
 		store_vector_to_diagonal(i, j, result);
@@ -126,8 +168,11 @@ private:
 		y = _mm_add_epi32(y, vector_1);
 		w = _mm_add_epi32(w, vector_1);
 		z = _mm_add_epi32(z, _mm_andnot_si128(_mm_cmpeq_epi32(a, b), vector_1));
+        auto arr_z = policy::copy_into_array(z);
 		vector_type res = _mm_min_epi32(y, w);
+        auto arr_res = policy::copy_into_array(res);
 		res = _mm_min_epi32(res, z);
+        arr_res = policy::copy_into_array(res);
 		return res;
 #elif defined(USE_AVX)
 
@@ -193,8 +238,8 @@ private:
 
 		size_t array_idx = 0;
 		for(size_t i = bottom_left_row, j = bottom_left_col;
-			i < bottom_left_row + stripe_size && j < bottom_left_col + stripe_size;
-			i++, j++)
+			i > bottom_left_row - stripe_size && j < bottom_left_col + stripe_size;
+			i--, j++)
 		{
 			results[i][j] = tmp_array[array_idx];
 			array_idx++;
