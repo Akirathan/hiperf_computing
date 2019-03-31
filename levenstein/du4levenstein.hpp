@@ -31,8 +31,8 @@ public:
 	levenstein(I1 i1b, I1 i1e, I2 i2b, I2 i2e)
         : array_1(i1b, i1e),
           array_2(i2b, i2e),
-          results_rows{array_1.size() + 1},
-          results_cols{array_2.size() + 1},
+          results_rows{array_2.size() + 1},
+          results_cols{array_1.size() + 1},
           vector_stripe_left_boundary{1},
           vector_stripe_right_boundary{results_cols - stripe_size},
           cols_left_boundary{1}
