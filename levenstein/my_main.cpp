@@ -49,6 +49,7 @@ public:
         test_compute_vector();
         test_random_vectors();
         functional_tests();
+        bigger_functional_tests();
         std::cout << "Tests for SSE passed" << std::endl;
     }
     
@@ -57,6 +58,7 @@ private:
     using array_t = std::array<int, 4>;
     static constexpr auto tmp_array1 = {1, 2};
     static constexpr auto tmp_array2 = {3, 4};
+    static constexpr size_t max_vector_size = 1024;
     levenstein<policy_sse> levenstein_;
 
     struct arrays_t {
@@ -115,6 +117,21 @@ private:
         a1 = {1, 2, 3};
         a2 = {1, 2, 3};
         compare_both(a1.begin(), a1.end(), a2.begin(), a2.end(), 0);
+
+        // Different sizes.
+        a1 = {1, 2, 3};
+        a2 = {4, 2, 1, 5};
+        compare_both(a1.begin(), a1.end(), a2.begin(), a2.end());
+    }
+
+    void bigger_functional_tests()
+    {
+        for (size_t i = 0; i < 5; ++i) {
+            std::vector<int> vec1 = random_vector();
+            std::vector<int> vec2 = random_vector();
+
+            compare_both(vec1.begin(), vec1.end(), vec2.begin(), vec2.end());
+        }
     }
 
     template <typename It1, typename It2>
@@ -165,8 +182,8 @@ private:
         vector_type vec_y = _mm_setr_epi32(y[0], y[1], y[2], y[3]);
         vector_type vec_w = _mm_setr_epi32(w[0], w[1], w[2], w[3]);
         vector_type vec_z = _mm_setr_epi32(z[0], z[1], z[2], z[3]);
-        vector_type vec_a = _mm_set_epi32(a[0], a[1], a[2], a[3]); // Reversed
-        vector_type vec_b = _mm_setr_epi32(b[0], b[1], b[2], b[3]);
+        vector_type vec_a = _mm_setr_epi32(a[0], a[1], a[2], a[3]);
+        vector_type vec_b = _mm_set_epi32(b[0], b[1], b[2], b[3]); // Reversed.
 
         vector_type vec_res = levenstein_.compute_levenstein_distance(vec_y, vec_w, vec_z, vec_a, vec_b);
 
@@ -198,6 +215,20 @@ private:
             i = std::rand();
         }
         return array;
+    }
+
+    std::vector<int> random_vector() const
+    {
+        size_t size = 0;
+        while (size < 10) {
+            size = std::rand() % max_vector_size;
+        }
+        std::vector<int> vec;
+        for (size_t i = 0; i < size; ++i) {
+            int rand_int = std::rand();
+            vec.push_back(rand_int);
+        }
+        return vec;
     }
     
     void assert_same(array_t array_1, array_t array_2) const
