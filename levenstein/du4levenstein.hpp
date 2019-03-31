@@ -112,7 +112,7 @@ private:
 		vector_type vector_w = get_vector_from_diagonal(i - 1, j);
 		vector_type vector_z = get_vector_from_diagonal(i - 1, j - 1);
 		// TODO: jeden zvektoru a, b obratit.
-		vector_type vector_a = get_vector_from_array(array_1, j);
+		vector_type vector_a = get_vector_from_array_reversed(array_1, j);
 		vector_type vector_b = get_vector_from_array(array_2, i-3);
 
 		vector_type result = compute_levenstein_distance(vector_y, vector_w, vector_z, vector_a, vector_b);
@@ -163,8 +163,8 @@ private:
 
 	vector_type get_vector_from_array(const std::vector<data_element> &array, size_t idx) const
 	{
+        assert(idx + stripe_size <= array.size());
 #if defined(USE_SSE)
-		assert(idx + stripe_size <= array.size());
 		return _mm_setr_epi32(array[idx], array[idx+1], array[idx+2], array[idx+3]);
 #elif defined(USE_AVX512)
 
@@ -172,6 +172,18 @@ private:
 
 #endif
 	}
+
+    vector_type get_vector_from_array_reversed(const std::vector<data_element> &array, size_t idx) const
+    {
+        assert(idx + stripe_size <= array.size());
+#if defined(USE_SSE)
+        return _mm_set_epi32(array[idx], array[idx+1], array[idx+2], array[idx+3]);
+#elif defined(USE_AVX512)
+
+#elif defined(USE_AVX)
+
+#endif
+    }
 
 	void store_vector_to_diagonal(size_t bottom_left_row, size_t bottom_left_col, vector_type src_vec)
 	{
@@ -226,7 +238,15 @@ private:
 
 struct policy_sse {
 	using vector_type = __m128i;
+	using array_type = std::array<int, 4>;
     constexpr static size_t register_size = 128;
+
+    static array_type copy_into_array(vector_type vec)
+    {
+        array_type arr = {0, 0, 0, 0};
+        _mm_storeu_si128(reinterpret_cast<__m128i *>(arr.data()), vec);
+        return arr;
+    }
 };
 
 // TODO
