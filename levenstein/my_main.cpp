@@ -6,6 +6,7 @@
 #include <vector>
 #include <tuple>
 #include "du4levenstein.hpp"
+#include "dummy_levenstein.hpp"
 
 #define USE_SSE
 
@@ -47,6 +48,7 @@ public:
     {
         test_compute_vector();
         test_random_vectors();
+        functional_tests();
         std::cout << "Tests for SSE passed" << std::endl;
     }
     
@@ -100,6 +102,50 @@ private:
             auto vector_array = compute_vector(arrays.y, arrays.w, arrays.z, arrays.a, arrays.b);
             assert_same(scalar_array, vector_array);
         }
+    }
+
+    void functional_tests()
+    {
+        // One same element in input arrays.
+        auto a1 = {1, 2, 3, 4, 5};
+        auto a2 = {9, 8, 3, 7, 1};
+        compare_both(a1.begin(), a1.end(), a2.begin(), a2.end(), 4);
+
+        // Zero distance.
+        a1 = {1, 2, 3};
+        a2 = {1, 2, 3};
+        compare_both(a1.begin(), a1.end(), a2.begin(), a2.end(), 0);
+    }
+
+    template <typename It1, typename It2>
+    void compare_both(It1 i1b, It1 i1e, It2 i2b, It2 i2e)
+    {
+        int std_impl_res = run_levenstein(i1b, i1e, i2b, i2e);
+        int dummy_impl_res = run_dummy(i1b, i1e, i2b, i2e);
+        assert(std_impl_res == dummy_impl_res);
+    }
+
+    template <typename It1, typename It2>
+    void compare_both(It1 i1b, It1 i1e, It2 i2b, It2 i2e, int expected)
+    {
+        int std_impl_res = run_levenstein(i1b, i1e, i2b, i2e);
+        int dummy_impl_res = run_dummy(i1b, i1e, i2b, i2e);
+        assert(std_impl_res == dummy_impl_res);
+        assert(std_impl_res == expected);
+    }
+
+    template <typename It1, typename It2>
+    int run_levenstein(It1 i1b, It1 i1e, It2 i2b, It2 i2e)
+    {
+        levenstein<policy_sse> std_impl{i1b, i1e, i2b, i2e};
+        return std_impl.compute();
+    }
+
+    template <typename It1, typename It2>
+    int run_dummy(It1 i1b, It1 i1e, It2 i2b, It2 i2e)
+    {
+        dummy_levenstein dummy_impl{i1b, i1e, i2b, i2e};
+        return dummy_impl.compute();
     }
 
     array_t compute_scalar(array_t y, array_t w, array_t z, array_t a, array_t b) const
@@ -162,15 +208,20 @@ private:
     }
 };
 
-int main()
+static void run_vector_tests()
 {
     LevensteinTester<policy_sse> levenstein_tester;
     levenstein_tester.run_all_tests();
-    return 0;
+}
+
+int main()
+{
+    run_vector_tests();
 
     auto array_1 = {1, 3, 5, 7, 9};
     auto array_2 = {2, 4, 6, 8, 10};
     levenstein<policy_sse> levenstein{array_1.begin(), array_1.end(), array_2.begin(), array_2.end()};
 
     int result = levenstein.compute();
+    std::cout << "Levenstein result=" << result << std::endl;
 }
