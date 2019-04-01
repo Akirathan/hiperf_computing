@@ -173,15 +173,11 @@ private:
 	vector_type compute_levenstein_distance(vector_type y, vector_type w, vector_type z, vector_type a, vector_type b) const
 	{
 #if defined(USE_SSE)
-		vector_type vector_1 = _mm_setr_epi32(1, 1, 1, 1);
-		y = _mm_add_epi32(y, vector_1);
-		w = _mm_add_epi32(w, vector_1);
-		z = _mm_add_epi32(z, _mm_andnot_si128(_mm_cmpeq_epi32(a, b), vector_1));
-        auto arr_z = policy::copy_into_array(z);
-		vector_type res = _mm_min_epi32(y, w);
-        auto arr_res = policy::copy_into_array(res);
-		res = _mm_min_epi32(res, z);
-        arr_res = policy::copy_into_array(res);
+        vector_type vector_1 = _mm_setr_epi32(1, 1, 1, 1);
+	    vector_type res = _mm_min_epi32(_mm_add_epi32(y, vector_1),
+	                                    _mm_add_epi32(w, vector_1));
+	    res = _mm_min_epi32(res,
+	                        _mm_add_epi32(z, _mm_andnot_si128(_mm_cmpeq_epi32(a, b), vector_1)));
 		return res;
 #elif defined(USE_AVX)
 
