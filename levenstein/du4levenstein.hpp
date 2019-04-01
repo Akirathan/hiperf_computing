@@ -9,6 +9,8 @@
 #include <emmintrin.h>
 #include <smmintrin.h>
 
+#include "dummy_levenstein.hpp"
+
 #if !defined(USE_AVX512) && !defined(USE_AVX)
 #define USE_SSE
 #endif
@@ -21,6 +23,8 @@
 
 template <typename policy>
 class LevensteinTester;
+
+static constexpr bool use_dummy_impl = false;
 
 template< typename policy>
 class levenstein {
@@ -46,6 +50,11 @@ public:
 
 	data_element compute()
 	{
+	    if (use_dummy_impl) {
+	        dummy_levenstein dummy_lev{array_1.begin(), array_1.end(), array_2.begin(), array_2.end()};
+	        return dummy_lev.compute();
+	    }
+
 	    size_t i = stripe_size;
 		for (; i < results_rows; i += stripe_size) {
 			compute_stripe(i);
