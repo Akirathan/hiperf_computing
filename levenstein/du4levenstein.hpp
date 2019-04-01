@@ -173,7 +173,7 @@ private:
 	vector_type compute_levenstein_distance(vector_type y, vector_type w, vector_type z, vector_type a, vector_type b) const
 	{
 #if defined(USE_SSE)
-        vector_type vector_1 = _mm_setr_epi32(1, 1, 1, 1);
+        vector_type vector_1 = policy::get_vector_1();
 	    vector_type res = _mm_min_epi32(_mm_add_epi32(y, vector_1),
 	                                    _mm_add_epi32(w, vector_1));
 	    res = _mm_min_epi32(res,
@@ -195,15 +195,12 @@ private:
 		return std::min({first, second, third});
 	}
 
-	vector_type get_vector_from_diagonal(size_t bottom_left_row, size_t bottom_left_col) const
+	vector_type get_vector_from_diagonal(size_t bottom_left_row, size_t bottom_left_col)
 	{
 		size_t i = bottom_left_row;
 		size_t j = bottom_left_col;
 #if defined(USE_SSE)
-		return _mm_setr_epi32(results[i][j],
-                              results[i-1][j+1],
-                              results[i-2][j+2],
-                              results[i-3][j+3]);
+        return policy::copy_to_vector(results[i][j], results[i-1][j+1], results[i-2][j+2], results[i-3][j+3]);
 #elif defined(USE_AVX512)
 
 #elif defined(USE_AVX)
@@ -215,7 +212,7 @@ private:
 	{
         assert(idx + stripe_size <= array.size());
 #if defined(USE_SSE)
-		return _mm_setr_epi32(array[idx], array[idx+1], array[idx+2], array[idx+3]);
+        return policy::copy_to_vector(array[idx], array[idx+1], array[idx+2], array[idx+3]);
 #elif defined(USE_AVX512)
 
 #elif defined(USE_AVX)
@@ -227,7 +224,7 @@ private:
     {
         assert(idx + stripe_size <= array.size());
 #if defined(USE_SSE)
-        return _mm_set_epi32(array[idx], array[idx+1], array[idx+2], array[idx+3]);
+        return policy::copy_to_vector(array[idx+3], array[idx+2], array[idx+1], array[idx]);
 #elif defined(USE_AVX512)
 
 #elif defined(USE_AVX)
@@ -286,10 +283,17 @@ private:
 	friend class LevensteinTester<policy>;
 };
 
+
 struct policy_sse {
+    using data_element = int;
 	using vector_type = __m128i;
-	using array_type = std::array<int, 4>;
+	using array_type = std::array<data_element, 4>;
     constexpr static size_t register_size = 128;
+    constexpr static size_t alignment = 16;
+    constexpr static size_t elems_count_per_register = register_size / (sizeof(data_element) * 8);
+    static __attribute__ ((aligned(alignment))) std::array<data_element, elems_count_per_register> aligned_array;
+    static bool vector_1_initialized;
+    static vector_type vector_1;
 
     static array_type copy_into_array(vector_type vec)
     {
@@ -297,7 +301,27 @@ struct policy_sse {
         _mm_storeu_si128(reinterpret_cast<__m128i *>(arr.data()), vec);
         return arr;
     }
+
+    static vector_type get_vector_1()
+    {
+        if (!vector_1_initialized) {
+            array_type arr = {1, 1, 1, 1};
+            vector_1 = _mm_load_si128(reinterpret_cast<__m128i *>(arr.data()));
+            vector_1_initialized = true;
+        }
+        return vector_1;
+    }
+
+    static vector_type copy_to_vector(data_element elem1, data_element elem2, data_element elem3, data_element elem4)
+    {
+        aligned_array[0] = elem1;
+        aligned_array[1] = elem2;
+        aligned_array[2] = elem3;
+        aligned_array[3] = elem4;
+        return _mm_load_si128(reinterpret_cast<__m128i *>(aligned_array.data()));
+    }
 };
+
 
 // TODO
 struct policy_avx {

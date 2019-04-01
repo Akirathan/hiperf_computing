@@ -11,4 +11,5 @@ project(my_main)
 add_executable(my_main
         my_main.cpp
         du4levenstein.hpp
+        du4levenstein.cpp
         dummy_levenstein.hpp)
