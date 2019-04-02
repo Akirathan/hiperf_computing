@@ -6,9 +6,8 @@
 #define MY_MAIN_LEVENSTEIN_TESTER_SSE_HPP
 
 
-#ifdef USE_SSE
 template <>
-class LevensteinTester <policy_sse> {
+class LevensteinTester<policy_sse> {
 public:
     LevensteinTester()
         : levenstein_{tmp_array1.begin(), tmp_array1.end(), tmp_array2.begin(), tmp_array2.end()}
@@ -151,7 +150,5 @@ private:
         }
     }
 };
-
-#endif // USE_SSE
 
 #endif //MY_MAIN_LEVENSTEIN_TESTER_SSE_HPP

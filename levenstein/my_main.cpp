@@ -27,7 +27,7 @@ static void run_levenstein()
                                          arr2.begin(), arr2.end()};
 }
 
-static void run_all_tests()
+static void run_all_avx512_tests()
 {
     LevensteinTester<policy_avx512> tester;
     FunctionalTester<policy_avx512> functional_tester;
@@ -37,17 +37,18 @@ static void run_all_tests()
 #endif // USE_AVX512
 
 
-#ifdef USE_SSE
-static void run_all_tests()
+static void run_all_sse_tests()
 {
     LevensteinTester<policy_sse> tester;
     FunctionalTester<policy_sse> functional_tester;
     tester.run_all_tests();
     functional_tester.run_all_tests();
 }
-#endif // USE_SSE
 
 int main()
 {
-    run_all_tests();
+    run_all_sse_tests();
+#ifdef USE_AVX512
+    run_all_avx512_tests();
+#endif
 }
