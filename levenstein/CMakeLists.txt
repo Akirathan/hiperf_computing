@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 project(levenstein)
 
-add_compile_options("-Wall" "-msse4.2")
+add_compile_options("-Wall" "-mavx512f")
 set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")

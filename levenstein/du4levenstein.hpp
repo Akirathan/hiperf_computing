@@ -8,8 +8,11 @@
 #include <cstddef>
 #include <emmintrin.h>
 #include <smmintrin.h>
+#include <immintrin.h>
 
 #include "dummy_levenstein.hpp"
+
+#define USE_AVX512
 
 #if !defined(USE_AVX512) && !defined(USE_AVX)
 #define USE_SSE
@@ -67,6 +70,7 @@ public:
 
 private:
 	using vector_type = typename policy::vector_type;
+	using array_type = typename policy::array_type;
 	constexpr static size_t stripe_size = policy::register_size / (sizeof(data_element) * 8);
 	const std::vector<data_element> array_1;
 	const std::vector<data_element> array_2;
@@ -172,8 +176,8 @@ private:
 
 	vector_type compute_levenstein_distance(vector_type y, vector_type w, vector_type z, vector_type a, vector_type b) const
 	{
-#if defined(USE_SSE)
         vector_type vector_1 = policy::get_vector_1();
+#if defined(USE_SSE)
 	    vector_type res = _mm_min_epi32(_mm_add_epi32(y, vector_1),
 	                                    _mm_add_epi32(w, vector_1));
 	    res = _mm_min_epi32(res,
@@ -182,7 +186,15 @@ private:
 #elif defined(USE_AVX)
 
 #elif defined(USE_AVX512)
+		vector_type res = _mm512_min_epi32(_mm512_add_epi32(y, vector_1),
+		                                   _mm512_add_epi32(w, vector_1));
 
+		__mmask16 cmpeq_mask = _mm512_cmpeq_epi32_mask(a, b);
+		__mmask16 not_cmpeq_mask = _mm512_knot(cmpeq_mask);
+		z = _mm512_mask_add_epi32(z, not_cmpeq_mask, z, vector_1);
+
+		res = _mm512_min_epi32(res, z);
+		return res;
 #endif
 	}
 
@@ -202,7 +214,13 @@ private:
 #if defined(USE_SSE)
         return policy::copy_to_vector(results[i][j], results[i-1][j+1], results[i-2][j+2], results[i-3][j+3]);
 #elif defined(USE_AVX512)
-
+        array_type arr;
+        size_t arr_idx = 0;
+        for(; i > bottom_left_row - stripe_size && j < bottom_left_col + stripe_size; i++, j++) {
+            arr[arr_idx] = results[i][j];
+            arr_idx++;
+        }
+        return policy::copy_to_vector(arr);
 #elif defined(USE_AVX)
 
 #endif
@@ -214,7 +232,11 @@ private:
 #if defined(USE_SSE)
         return policy::copy_to_vector(array[idx], array[idx+1], array[idx+2], array[idx+3]);
 #elif defined(USE_AVX512)
-
+        array_type arr;
+        for (size_t i = 0; i < policy::elements_count_per_register; ++i) {
+            arr[i] = array[i];
+        }
+        return policy::copy_to_vector(arr);
 #elif defined(USE_AVX)
 
 #endif
@@ -226,7 +248,14 @@ private:
 #if defined(USE_SSE)
         return policy::copy_to_vector(array[idx+3], array[idx+2], array[idx+1], array[idx]);
 #elif defined(USE_AVX512)
+        array_type arr;
+        size_t arr_idx = 0;
+        for (size_t i = policy::elements_count_per_register; i > 0; i--) {
+            arr[arr_idx] = array[idx + i];
+            arr_idx++;
+        }
 
+        return policy::copy_to_vector(arr);
 #elif defined(USE_AVX)
 
 #endif
@@ -234,23 +263,22 @@ private:
 
 	void store_vector_to_diagonal(size_t bottom_left_row, size_t bottom_left_col, vector_type src_vec)
 	{
+        array_type tmp_array;
 #if defined(USE_SSE)
-		std::array<data_element, stripe_size> tmp_array;
 		_mm_storeu_si128(reinterpret_cast<__m128i *>(tmp_array.data()), src_vec);
-
-		size_t array_idx = 0;
-		for(size_t i = bottom_left_row, j = bottom_left_col;
-			i > bottom_left_row - stripe_size && j < bottom_left_col + stripe_size;
-			i--, j++)
-		{
-			results[i][j] = tmp_array[array_idx];
-			array_idx++;
-		}
 #elif defined(USE_AVX512)
-
+        _mm512_storeu_si512(reinterpret_cast<void *>(tmp_array.data()), src_vec);
 #elif defined(USE_AVX)
 
 #endif
+        size_t array_idx = 0;
+        for(size_t i = bottom_left_row, j = bottom_left_col;
+            i > bottom_left_row - stripe_size && j < bottom_left_col + stripe_size;
+            i--, j++)
+        {
+            results[i][j] = tmp_array[array_idx];
+            array_idx++;
+        }
 	}
 
 	void fill_boundaries()
@@ -287,11 +315,11 @@ private:
 struct policy_sse {
     using data_element = int;
 	using vector_type = __m128i;
-	using array_type = std::array<data_element, 4>;
     constexpr static size_t register_size = 128;
+    constexpr static size_t elements_count_per_register = register_size / (sizeof(data_element) * 8);
+	using array_type = std::array<data_element, elements_count_per_register>;
     constexpr static size_t alignment = 16;
-    constexpr static size_t elems_count_per_register = register_size / (sizeof(data_element) * 8);
-    static __attribute__ ((aligned(alignment))) std::array<data_element, elems_count_per_register> aligned_array;
+    static __attribute__ ((aligned(alignment))) array_type aligned_array;
     static bool vector_1_initialized;
     static vector_type vector_1;
 
@@ -328,9 +356,39 @@ struct policy_avx {
 	constexpr static size_t register_size = 0; // TODO
 };
 
-// TODO
 struct policy_avx512 {
-	constexpr static size_t register_size = 512;
+    using data_element = int;
+    using vector_type = __m512i;
+    constexpr static size_t register_size = 512;
+    constexpr static size_t elements_count_per_register = register_size / (sizeof(data_element) * 8); //16
+    constexpr static size_t alignment = 64;
+    using array_type = std::array<data_element, elements_count_per_register>;
+    static __attribute__ ((aligned(alignment))) array_type aligned_array;
+    static __attribute__ ((aligned(alignment))) array_type array_1;
+    static vector_type vector_1;
+    static bool vector_1_initialized;
+
+    static vector_type get_vector_1()
+    {
+        if (!vector_1_initialized) {
+            vector_1 = _mm512_load_si512(reinterpret_cast<void *>(array_1.data()));
+            vector_1_initialized = true;
+        }
+        return vector_1;
+    }
+
+    static vector_type copy_to_vector(const array_type &array)
+    {
+        aligned_array = array;
+        return _mm512_load_si512(reinterpret_cast<void *>(aligned_array.data()));
+    }
+
+    static array_type copy_into_array(vector_type vec)
+    {
+        array_type tmp_array = {};
+        _mm512_storeu_si512(reinterpret_cast<void *>(tmp_array.data()), vec);
+        return tmp_array;
+    }
 };
 
 #endif
