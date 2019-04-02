@@ -19,6 +19,7 @@ public:
     void run_all_tests()
     {
         test_compute_vector();
+        test_compute_vector_same();
         test_random_vectors();
         std::cout << "Tests for SSE passed" << std::endl;
     }
@@ -58,6 +59,22 @@ private:
         array_t a = {2, 4, 6, 8};
         array_t b = {1, 3, 5, 7};
         array_t expected = {4, 3, 3, 4};
+
+        auto scalar_array = compute_scalar(y, w, z, a, b);
+        auto vector_array = compute_vector(y, w, z, a, b);
+        assert_same(scalar_array, vector_array);
+        assert_same(scalar_array, expected);
+    }
+
+    void test_compute_vector_same()
+    {
+        array_t y = {1, 1, 1, 1};
+        array_t w = {1, 1, 1, 1};
+        array_t z = {1, 1, 1, 1};
+        array_t a = {23, 23, 1, 23};
+        array_t b = {1, 1, 1, 1};
+        array_t expected =
+                    {2, 2, 1, 2};
 
         auto scalar_array = compute_scalar(y, w, z, a, b);
         auto vector_array = compute_vector(y, w, z, a, b);
