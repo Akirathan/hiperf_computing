@@ -35,12 +35,13 @@ TEST_CPP_NAMES = \
 
 TEST_HEDER_FILES = \
 	du4levenstein.hpp \
+	functional_tester.hpp \
 	levenstein_tester_sse.hpp \
 	levenstein_tester_avx512.hpp \
 	dummy_levenstein.hpp
 
-CPP_NAMES = $(TEST_CPP_NAMES)
-HEADER_FILES = $(TEST_HEADER_FILES)
+CPP_NAMES = $(ORIG_CPP_NAMES)
+HEADER_FILES = $(ORIG_HEADER_FILES)
 
 
 TEMP_FOLDER = tmp.$(HW_NAME)
