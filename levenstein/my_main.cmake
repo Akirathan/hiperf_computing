@@ -7,4 +7,5 @@ add_executable(my_main
         du4levenstein.cpp
         levenstein_tester_sse.hpp
         levenstein_tester_avx512.hpp
+        functional_tester.hpp
         dummy_levenstein.hpp)

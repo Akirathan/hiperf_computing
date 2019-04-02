@@ -9,6 +9,7 @@
 #include "dummy_levenstein.hpp"
 #include "levenstein_tester_avx512.hpp"
 #include "levenstein_tester_sse.hpp"
+#include "functional_tester.hpp"
 
 #define USE_AVX512
 
@@ -20,7 +21,7 @@ static bool is_aligned(const void *ptr)
 }
 
 #ifdef USE_AVX512
-static void run_avx512_levenstein()
+static void run_levenstein()
 {
     auto arr1 = {1,2,3,4};
     auto arr2 = {1,2,3,4};
@@ -28,15 +29,27 @@ static void run_avx512_levenstein()
                                          arr2.begin(), arr2.end()};
 }
 
-static void run_avx512_vector_tests()
+static void run_all_tests()
 {
     LevensteinTester<policy_avx512> tester;
+    FunctionalTester<policy_avx512> functional_tester;
     tester.run_all_tests();
+    functional_tester.run_all_tests();
 }
-
 #endif // USE_AVX512
+
+
+#ifdef USE_SSE
+static void run_all_tests()
+{
+    LevensteinTester<policy_sse> tester;
+    FunctionalTester<policy_sse> functional_tester;
+    tester.run_all_tests();
+    functional_tester.run_all_tests();
+}
+#endif // USE_SSE
 
 int main()
 {
-    run_avx512_vector_tests();
+    run_all_tests();
 }
