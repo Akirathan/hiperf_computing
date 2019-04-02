@@ -117,7 +117,7 @@ private:
         vector_type vec_b = policy_avx512::copy_to_vector(b);
 
         vector_type vec_res = levenstein_.compute_levenstein_distance(vec_y, vec_w, vec_z, vec_a, vec_b);
-        return policy_avx512::copy_into_array(vec_res);
+        return policy_avx512::copy_to_array(vec_res);
     }
 
     array_type compute_scalar(array_type y, array_type w, array_type z, array_type a, array_type b) const

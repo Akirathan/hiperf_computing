@@ -33,6 +33,7 @@ template< typename policy>
 class levenstein {
 public:
 	using data_element = int;
+	using matrix_type = std::vector<std::vector<data_element>>;
 
 	template< typename I1, typename I2>
 	levenstein(I1 i1b, I1 i1e, I2 i2b, I2 i2e)
@@ -79,7 +80,7 @@ private:
 	const size_t vector_stripe_left_boundary;
 	const size_t vector_stripe_right_boundary;
 	const size_t cols_left_boundary;
-	std::vector<std::vector<data_element>> results;
+	matrix_type results;
 
 	/// @param i lower index of stripe's row.
 	void compute_stripe(size_t i)
@@ -164,11 +165,11 @@ private:
 		vector_type vector_b = get_vector_from_array_reversed(array_2, i - stripe_size);
 
 		// debug
-		auto arr_y = policy::copy_into_array(vector_y);
-        auto arr_w = policy::copy_into_array(vector_w);
-        auto arr_z = policy::copy_into_array(vector_z);
-        auto arr_a = policy::copy_into_array(vector_a);
-        auto arr_b = policy::copy_into_array(vector_b);
+		auto arr_y = policy::copy_to_array(vector_y);
+        auto arr_w = policy::copy_to_array(vector_w);
+        auto arr_z = policy::copy_to_array(vector_z);
+        auto arr_a = policy::copy_to_array(vector_a);
+        auto arr_b = policy::copy_to_array(vector_b);
 
 		vector_type result = compute_levenstein_distance(vector_y, vector_w, vector_z, vector_a, vector_b);
 		store_vector_to_diagonal(i, j, result);
@@ -176,26 +177,7 @@ private:
 
 	vector_type compute_levenstein_distance(vector_type y, vector_type w, vector_type z, vector_type a, vector_type b) const
 	{
-        vector_type vector_1 = policy::get_vector_1();
-#if defined(USE_SSE)
-	    vector_type res = _mm_min_epi32(_mm_add_epi32(y, vector_1),
-	                                    _mm_add_epi32(w, vector_1));
-	    res = _mm_min_epi32(res,
-	                        _mm_add_epi32(z, _mm_andnot_si128(_mm_cmpeq_epi32(a, b), vector_1)));
-		return res;
-#elif defined(USE_AVX)
-
-#elif defined(USE_AVX512)
-		vector_type res = _mm512_min_epi32(_mm512_add_epi32(y, vector_1),
-		                                   _mm512_add_epi32(w, vector_1));
-
-		__mmask16 cmpeq_mask = _mm512_cmpeq_epi32_mask(a, b);
-		__mmask16 not_cmpeq_mask = _mm512_knot(cmpeq_mask);
-		z = _mm512_mask_add_epi32(z, not_cmpeq_mask, z, vector_1);
-
-		res = _mm512_min_epi32(res, z);
-		return res;
-#endif
+	    return policy::compute_levenstein_distance(y, w, z, a, b);
 	}
 
 	data_element compute_levenstein_distance(data_element upper, data_element left_upper, data_element left,
@@ -209,68 +191,41 @@ private:
 
 	vector_type get_vector_from_diagonal(size_t bottom_left_row, size_t bottom_left_col)
 	{
-		size_t i = bottom_left_row;
-		size_t j = bottom_left_col;
-#if defined(USE_SSE)
-        return policy::copy_to_vector(results[i][j], results[i-1][j+1], results[i-2][j+2], results[i-3][j+3]);
-#elif defined(USE_AVX512)
+        size_t i = bottom_left_row;
+        size_t j = bottom_left_col;
         array_type arr;
         size_t arr_idx = 0;
-        for(; i > bottom_left_row - stripe_size && j < bottom_left_col + stripe_size; i++, j++) {
+        for(; i > bottom_left_row - stripe_size && j < bottom_left_col + stripe_size; i++, j++)
+        {
             arr[arr_idx] = results[i][j];
             arr_idx++;
         }
         return policy::copy_to_vector(arr);
-#elif defined(USE_AVX)
-
-#endif
 	}
 
 	vector_type get_vector_from_array(const std::vector<data_element> &array, size_t idx) const
 	{
-        assert(idx + stripe_size <= array.size());
-#if defined(USE_SSE)
-        return policy::copy_to_vector(array[idx], array[idx+1], array[idx+2], array[idx+3]);
-#elif defined(USE_AVX512)
         array_type arr;
-        for (size_t i = 0; i < policy::elements_count_per_register; ++i) {
-            arr[i] = array[i];
+        for (size_t i = 0; i < stripe_size; ++i) {
+            arr[i] = array[idx + i];
         }
         return policy::copy_to_vector(arr);
-#elif defined(USE_AVX)
-
-#endif
 	}
 
     vector_type get_vector_from_array_reversed(const std::vector<data_element> &array, size_t idx) const
     {
-        assert(idx + stripe_size <= array.size());
-#if defined(USE_SSE)
-        return policy::copy_to_vector(array[idx+3], array[idx+2], array[idx+1], array[idx]);
-#elif defined(USE_AVX512)
         array_type arr;
         size_t arr_idx = 0;
-        for (size_t i = policy::elements_count_per_register; i > 0; i--) {
+        for (size_t i = stripe_size; i > 0; i--) {
             arr[arr_idx] = array[idx + i];
             arr_idx++;
         }
-
         return policy::copy_to_vector(arr);
-#elif defined(USE_AVX)
-
-#endif
     }
 
 	void store_vector_to_diagonal(size_t bottom_left_row, size_t bottom_left_col, vector_type src_vec)
 	{
-        array_type tmp_array;
-#if defined(USE_SSE)
-		_mm_storeu_si128(reinterpret_cast<__m128i *>(tmp_array.data()), src_vec);
-#elif defined(USE_AVX512)
-        _mm512_storeu_si512(reinterpret_cast<void *>(tmp_array.data()), src_vec);
-#elif defined(USE_AVX)
-
-#endif
+        array_type tmp_array = policy::copy_to_array(src_vec);
         size_t array_idx = 0;
         for(size_t i = bottom_left_row, j = bottom_left_col;
             i > bottom_left_row - stripe_size && j < bottom_left_col + stripe_size;
@@ -311,6 +266,7 @@ private:
 	friend class LevensteinTester<policy>;
 };
 
+using matrix_type = std::vector<std::vector<int>>;
 
 struct policy_sse {
     using data_element = int;
@@ -323,7 +279,7 @@ struct policy_sse {
     static bool vector_1_initialized;
     static vector_type vector_1;
 
-    static array_type copy_into_array(vector_type vec)
+    static array_type copy_to_array(vector_type vec)
     {
         array_type arr = {0, 0, 0, 0};
         _mm_storeu_si128(reinterpret_cast<__m128i *>(arr.data()), vec);
@@ -340,13 +296,21 @@ struct policy_sse {
         return vector_1;
     }
 
-    static vector_type copy_to_vector(data_element elem1, data_element elem2, data_element elem3, data_element elem4)
+    static vector_type copy_to_vector(const array_type &array)
     {
-        aligned_array[0] = elem1;
-        aligned_array[1] = elem2;
-        aligned_array[2] = elem3;
-        aligned_array[3] = elem4;
+        aligned_array = array;
         return _mm_load_si128(reinterpret_cast<__m128i *>(aligned_array.data()));
+    }
+
+    static vector_type compute_levenstein_distance(vector_type y, vector_type w, vector_type z,
+            vector_type a, vector_type b)
+    {
+        vector_type vector_1 = get_vector_1();
+        vector_type res = _mm_min_epi32(_mm_add_epi32(y, vector_1),
+	                                    _mm_add_epi32(w, vector_1));
+	    res = _mm_min_epi32(res,
+	                        _mm_add_epi32(z, _mm_andnot_si128(_mm_cmpeq_epi32(a, b), vector_1)));
+		return res;
     }
 };
 
@@ -383,11 +347,26 @@ struct policy_avx512 {
         return _mm512_load_si512(reinterpret_cast<void *>(aligned_array.data()));
     }
 
-    static array_type copy_into_array(vector_type vec)
+    static array_type copy_to_array(vector_type vec)
     {
         array_type tmp_array = {};
         _mm512_storeu_si512(reinterpret_cast<void *>(tmp_array.data()), vec);
         return tmp_array;
+    }
+
+    static vector_type compute_levenstein_distance(vector_type y, vector_type w, vector_type z,
+                                                   vector_type a, vector_type b)
+    {
+        vector_type vector_1 = get_vector_1();
+        vector_type res = _mm512_min_epi32(_mm512_add_epi32(y, vector_1),
+                                           _mm512_add_epi32(w, vector_1));
+
+        __mmask16 cmpeq_mask = _mm512_cmpeq_epi32_mask(a, b);
+        __mmask16 not_cmpeq_mask = _mm512_knot(cmpeq_mask);
+        z = _mm512_mask_add_epi32(z, not_cmpeq_mask, z, vector_1);
+
+        res = _mm512_min_epi32(res, z);
+        return res;
     }
 };
 
