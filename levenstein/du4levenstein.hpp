@@ -12,12 +12,6 @@
 
 #include "dummy_levenstein.hpp"
 
-#define USE_AVX512
-
-#if !defined(USE_AVX512) && !defined(USE_AVX)
-#define USE_SSE
-#endif
-
 #if defined(USE_AVX512) && defined(USE_AVX) || \
 	defined(USE_AVX) && defined(USE_SSE) || \
 	defined(USE_SSE) && defined(USE_AVX512)

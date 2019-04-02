@@ -11,8 +11,6 @@
 #include "levenstein_tester_sse.hpp"
 #include "functional_tester.hpp"
 
-#define USE_AVX512
-
 constexpr std::size_t alignment = 16;
 
 static bool is_aligned(const void *ptr)
