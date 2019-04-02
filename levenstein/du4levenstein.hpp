@@ -191,11 +191,13 @@ private:
 
 	vector_type get_vector_from_diagonal(size_t bottom_left_row, size_t bottom_left_col)
 	{
-        size_t i = bottom_left_row;
-        size_t j = bottom_left_col;
+        const size_t row_until = bottom_left_row - stripe_size + 1;
+        const size_t col_until = bottom_left_col + stripe_size - 1;
         array_type arr;
         size_t arr_idx = 0;
-        for(; i > bottom_left_row - stripe_size && j < bottom_left_col + stripe_size; i++, j++)
+        for(size_t i = bottom_left_row, j = bottom_left_col;
+            i >= row_until && j <= col_until;
+            i--, j++)
         {
             arr[arr_idx] = results[i][j];
             arr_idx++;
@@ -205,19 +207,25 @@ private:
 
 	vector_type get_vector_from_array(const std::vector<data_element> &array, size_t idx) const
 	{
+	    const size_t from_idx = idx;
+	    const size_t to_idx = idx + stripe_size - 1;
         array_type arr;
-        for (size_t i = 0; i < stripe_size; ++i) {
-            arr[i] = array[idx + i];
+        size_t arr_idx = 0;
+        for (size_t i = from_idx; i <= to_idx; ++i) {
+            arr[arr_idx] = array[i];
+            arr_idx++;
         }
         return policy::copy_to_vector(arr);
 	}
 
     vector_type get_vector_from_array_reversed(const std::vector<data_element> &array, size_t idx) const
     {
+	    const int from_idx = idx + stripe_size - 1;
+	    const int to_idx = idx;
         array_type arr;
         size_t arr_idx = 0;
-        for (size_t i = stripe_size; i > 0; i--) {
-            arr[arr_idx] = array[idx + i];
+        for (int i = from_idx; i >= to_idx; i--) {
+            arr[arr_idx] = array[i];
             arr_idx++;
         }
         return policy::copy_to_vector(arr);
@@ -225,11 +233,13 @@ private:
 
 	void store_vector_to_diagonal(size_t bottom_left_row, size_t bottom_left_col, vector_type src_vec)
 	{
+	    const size_t row_from = bottom_left_row;
+	    const size_t row_until = bottom_left_row - stripe_size + 1;
+	    const size_t col_from = bottom_left_col;
+	    const size_t col_until = bottom_left_col + stripe_size - 1;
         array_type tmp_array = policy::copy_to_array(src_vec);
         size_t array_idx = 0;
-        for(size_t i = bottom_left_row, j = bottom_left_col;
-            i > bottom_left_row - stripe_size && j < bottom_left_col + stripe_size;
-            i--, j++)
+        for (size_t i = row_from, j = col_from; i >= row_until && j <= col_until; i--, j++)
         {
             results[i][j] = tmp_array[array_idx];
             array_idx++;
