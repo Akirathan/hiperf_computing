@@ -3,6 +3,7 @@
 
 #include "du4levenstein.hpp"
 #include <cassert>
+#include <iostream>
 
 #ifdef USE_AVX512
 
@@ -16,6 +17,8 @@ public:
     void run_all_tests()
     {
         test_compute_vector();
+        test_random_vectors();
+        std::cout << "Tests for AVX512 passed" << std::endl;
     }
 
 private:
@@ -25,6 +28,26 @@ private:
     static constexpr auto tmp_array1 = {1, 2};
     static constexpr auto tmp_array2 = {3, 4};
     levenstein<policy_avx512> levenstein_;
+
+    struct arrays_t {
+        array_type y;
+        array_type w;
+        array_type z;
+        array_type a;
+        array_type b;
+
+        arrays_t(array_type y, array_type w, array_type z, array_type a, array_type b)
+                : y{y},
+                  w{w},
+                  z{z},
+                  a{a},
+                  b{b}
+        {
+            for (size_t i = 0; i < y.size() - 1; ++i) {
+                assert(w[i] == y[i + 1]);
+            }
+        }
+    };
 
     void test_compute_vector()
     {
@@ -48,6 +71,41 @@ private:
 
         assert_same(scalar_array, vector_array);
         assert_same(scalar_array, expected);
+    }
+
+    void test_random_vectors()
+    {
+        for (size_t i = 0; i < 3; ++i) {
+            auto arrays = generate_all_arrays_random();
+            auto scalar_array = compute_scalar(arrays.y, arrays.w, arrays.z, arrays.a, arrays.b);
+            auto vector_array = compute_vector(arrays.y, arrays.w, arrays.z, arrays.a, arrays.b);
+            assert_same(scalar_array, vector_array);
+        }
+    }
+
+    arrays_t generate_all_arrays_random() const
+    {
+        array_type a = random_array();
+        array_type b = random_array();
+        array_type z = random_array();
+        array_type w = random_array();
+
+        array_type y;
+        for (size_t i = 0; i < y.size() - 1; ++i) {
+            y[i+1] = w[i];
+        }
+        y[0] = rand();
+
+        return arrays_t{y, w, z, a, b};
+    }
+
+    array_type random_array() const
+    {
+        array_type array;
+        for (int &i : array) {
+            i = std::rand();
+        }
+        return array;
     }
 
     array_type compute_vector(array_type y, array_type w, array_type z, array_type a, array_type b) const
