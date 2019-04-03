@@ -20,7 +20,7 @@ public:
         test_compute_vector();
         test_compute_vector_same();
         test_random_vectors();
-        std::cout << "Tests for SSE passed" << std::endl;
+        std::cout << "Tests for SSE instructions passed" << std::endl;
     }
 
 private:
