@@ -21,6 +21,9 @@
 template <typename policy>
 class LevensteinTester;
 
+template <typename policy>
+class FunctionalTester;
+
 static constexpr bool use_dummy_impl = false;
 
 template< typename policy>
@@ -119,26 +122,23 @@ private:
             }
         }
 
-        array_type get_diagonal(size_t row, size_t col, size_t count) const
+        array_type get_diagonal(int row, int col, int count) const
         {
             array_type array;
             size_t array_idx = 0;
-            for (size_t i = row; i > row - count; i--) {
-                for (size_t j = col; j < col + count; j++) {
-                    array[array_idx] = rectangle[i][j];
-                    array_idx++;
-                }
+            for (int i = row, j = col; i > row-count && j < col+count; i--, j++) {
+                array[array_idx] = rectangle[i][j];
+                array_idx++;
             }
+            return array;
         }
 
         void set_diagonal(size_t row, size_t col, const array_type &array, size_t count)
         {
             size_t array_idx = 0;
-            for (size_t i = row; i > row - count; i--) {
-                for (size_t j = col; j < col + count; ++j) {
-                    rectangle[i][j] = array[array_idx];
-                    array_idx++;
-                }
+            for (size_t i = row, j = col; i > row-count && j < col+count; i--, j++) {
+                rectangle[i][j] = array[array_idx];
+                array_idx++;
             }
         }
 
@@ -387,6 +387,7 @@ private:
 	}
 
 	friend class LevensteinTester<policy>;
+	friend class FunctionalTester<policy>;
 };
 
 using matrix_type = std::vector<std::vector<int>>;
