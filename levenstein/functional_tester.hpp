@@ -12,6 +12,8 @@ class FunctionalTester {
 public:
     void run_all_tests()
     {
+        rectangle_tests();
+        std::cout << "Rectangle tests passed" << std::endl;
         functional_tests();
         bigger_functional_tests();
         std::cout << "All functional tests passed" << std::endl;
@@ -19,6 +21,36 @@ public:
 
 private:
     static constexpr size_t max_vector_size = 1024;
+
+    void rectangle_tests()
+    {
+        auto tmp_arr = {1,2};
+        levenstein<policy_sse> lev{tmp_arr.begin(), tmp_arr.end(), tmp_arr.begin(), tmp_arr.end()};
+
+        levenstein<policy_sse>::Rectangle rectangle{5, 5};
+        for (size_t i = 0; i < 5; ++i) {
+            for (size_t j = 0; j < 5; ++j) {
+                rectangle.set(i, j, j);
+            }
+        }
+
+        auto diag = rectangle.get_diagonal(4, 0, 4);
+        assert(diag[0] == 0);
+        assert(diag[1] == 1);
+        assert(diag[2] == 2);
+        assert(diag[3] == 3);
+
+        diag = rectangle.get_diagonal(3, 0, 4);
+        assert(diag[0] == 0);
+        assert(diag[1] == 1);
+        assert(diag[2] == 2);
+        assert(diag[3] == 3);
+
+        diag = rectangle.get_diagonal(2, 1, 3);
+        assert(diag[0] == 1);
+        assert(diag[1] == 2);
+        assert(diag[2] == 3);
+    }
 
     void functional_tests()
     {
