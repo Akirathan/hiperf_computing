@@ -80,6 +80,72 @@ private:
 	std::vector<data_element> row;
 	size_t row_idx;
 
+    class Rectangle {
+    public:
+        const size_t rows_count;
+        const size_t cols_count;
+
+        Rectangle(size_t rows_count, size_t cols_count)
+                : rows_count{rows_count},
+                  cols_count{cols_count},
+                  rectangle(rows_count)
+        {
+            for (std::vector<data_element> &row_vec : rectangle) {
+                row_vec.resize(cols_count);
+            }
+        }
+
+        void set(size_t i, size_t j, data_element value)
+        {
+            rectangle[i][j] = value;
+        }
+
+        data_element get(size_t i, size_t j) const
+        {
+            return rectangle[i][j];
+        }
+
+        void copy_to_first_row(const std::vector<data_element> &src_row)
+        {
+            for (size_t i = 0; i < src_row.size(); ++i) {
+                rectangle[0][i] = src_row[i];
+            }
+        }
+
+        void fill_first_column(const size_t row_idx)
+        {
+            for (size_t i = 0; i < rows_count; ++i) {
+                rectangle[i][0] = row_idx + i;
+            }
+        }
+
+        array_type get_diagonal(size_t row, size_t col, size_t count) const
+        {
+            array_type array;
+            size_t array_idx = 0;
+            for (size_t i = row; i > row - count; i--) {
+                for (size_t j = col; j < col + count; j++) {
+                    array[array_idx] = rectangle[i][j];
+                    array_idx++;
+                }
+            }
+        }
+
+        void set_diagonal(size_t row, size_t col, const array_type &array, size_t count)
+        {
+            size_t array_idx = 0;
+            for (size_t i = row; i > row - count; i--) {
+                for (size_t j = col; j < col + count; ++j) {
+                    rectangle[i][j] = array[array_idx];
+                    array_idx++;
+                }
+            }
+        }
+
+    private:
+        std::vector<std::vector<data_element>> rectangle;
+    };
+
 	/// @param i lower index of stripe's row.
 	void compute_stripe(size_t i)
 	{
@@ -92,7 +158,7 @@ private:
 			compute_one_stripe_diagonal(i, j);
 		}
 
-		compute_last_part_of_stripe(i);
+		compute_last_part_of_stripe();
 	}
 
 	/// Left upper triangle
@@ -100,17 +166,10 @@ private:
 	{
 	    const size_t rectangle_row_count = stripe_size + 1;
 	    const size_t rectangle_col_count = stripe_size;
-	    std::array<std::array<data_element, rectangle_col_count>, rectangle_row_count> rectangle;
+	    Rectangle rectangle{rectangle_row_count, rectangle_col_count};
 
-	    // Fill first column.
-        for (size_t i = 0; i < rectangle_row_count; ++i) {
-            rectangle[i][0] = row_idx + i;
-        }
-
-        // Fill first row.
-        for (size_t j = 0; j < rectangle_col_count; j++) {
-            rectangle[0][j] = row[j];
-        }
+        rectangle.copy_to_first_row(row);
+        rectangle.fill_first_column(row_idx);
 
         const size_t operations_num_from = stripe_size - 1;
         const size_t operations_num_until = 0;
@@ -126,84 +185,47 @@ private:
             }
         }
 
-        store_arrays_from_rectangle(rectangle, rectangle_row_count, rectangle_col_count);
+        store_arrays_from_rectangle(rectangle);
 	}
 
-	template <typename Rectangle>
 	void store_arrays_from_rectangle(const Rectangle &rectangle)
     {
-        const size_t rectangle_row_count = rectangle.size();
-        const size_t rectangle_col_count = rectangle[0].size();
-
-        size_t array_y_idx = 0;
-        for (size_t i = rectangle_row_count - 1; i > 1; i--) {
-            for (size_t j = 0; j < rectangle_col_count; ++j) {
-                array_y[array_y_idx] = rectangle[i][j];
-                array_y_idx++;
-            }
-        }
+        array_y = rectangle.get_diagonal(rectangle.rows_count - 1, 0, stripe_size);
 
         for (size_t i = 0; i < array_y.size() - 1; ++i) {
             array_w[i] = array_y[i];
         }
         array_w[array_w.size() - 1] = row[stripe_size];
 
-        size_t array_z_idx = 0;
-        for (size_t i = rectangle_row_count - 2; i > 0; i--) {
-            for (size_t j = 0; j < rectangle_col_count; ++j) {
-                array_z[array_z_idx] = rectangle[i][j];
-                array_z_idx++;
-            }
-        }
+        array_z = rectangle.get_diagonal(rectangle.rows_count - 2, 0, stripe_size);
     }
 
-	template <typename Rectangle>
 	void compute_distance_in_rectangle(Rectangle &rectangle, size_t i, size_t j) const
     {
-	    data_element upper = rectangle[i-1][j];
-	    data_element left_upper = rectangle[i-1][j-1];
-	    data_element left = rectangle[i][j-1];
+	    data_element upper = rectangle.get(i-1, j);
+	    data_element left_upper = rectangle.get(i-1, j-1);
+	    data_element left = rectangle.get(i, j-1);
 	    data_element a = input_array_1[j-1];
 	    data_element b = input_array_2[i-1];
-	    rectangle[i][j] = compute_levenstein_distance(upper, left_upper, left, a, b);
+	    rectangle.set(i, j, compute_levenstein_distance(upper, left_upper, left, a, b));
     }
 
-    template <typename Rectangle>
     void copy_arrays_to_rectangle_in_last_part(Rectangle &rectangle) const
     {
-	    const size_t rectangle_row_count = rectangle.size();
-	    const size_t rectangle_col_count = rectangle[0].size();
-
-        const size_t z_from_row = rectangle_row_count - 2;
-        const size_t z_until_row = 0;
+        const size_t z_from_row = rectangle.rows_count - 2;
         const size_t z_from_col = 0;
-        const size_t z_until_col = rectangle_col_count - 1;
-        size_t array_z_idx = 0;
-        for (size_t i = z_from_row; i >= z_until_row; i--) {
-            for (size_t j = z_from_col; j < z_until_col; ++j) {
-                rectangle[i][j] = array_z[array_z_idx];
-                array_z_idx++;
-            }
-        }
+        rectangle.set_diagonal(z_from_row, z_from_col, array_z, array_z.size() - 1);
 
-        const size_t y_from_row = rectangle_row_count - 1;
-        const size_t y_until_row = 0;
+        const size_t y_from_row = rectangle.rows_count - 1;
         const size_t y_from_col = 0;
-        const size_t y_until_col = rectangle_col_count;
-        size_t array_y_idx = 0;
-        for (size_t i = y_from_row; i >= y_until_row; i--) {
-            for (size_t j = y_from_col; j < y_until_col; ++j) {
-                rectangle[i][j] = array_y[array_y_idx];
-                array_y_idx++;
-            }
-        }
+        rectangle.set_diagonal(y_from_row, y_from_col, array_y, array_y.size());
     }
 
 	void compute_last_part_of_stripe()
     {
 	    const size_t rectangle_row_count = stripe_size;
 	    const size_t rectangle_col_count = stripe_size;
-	    std::array<std::array<data_element, rectangle_col_count>, rectangle_row_count> rectangle;
+	    Rectangle rectangle{rectangle_row_count, rectangle_col_count};
 
 	    copy_arrays_to_rectangle_in_last_part(rectangle);
 
@@ -224,36 +246,27 @@ private:
         store_row_from_rectangle_in_last_part(rectangle);
     }
 
-    template <typename Rectangle>
     void store_row_from_rectangle_in_last_part(const Rectangle &rectangle)
     {
-        const size_t rectangle_col_count = rectangle[0].size();
-        const size_t rectangle_row_count = rectangle.size();
-        const size_t last_row_idx = rectangle_row_count - 1;
+        const size_t last_row_idx = rectangle.rows_count - 1;
 
         size_t col_idx = results_cols - stripe_size + 1;
-        for (size_t j = 1; j < rectangle_col_count; ++j) {
-            row[col_idx] = rectangle[last_row_idx][j];
+        for (size_t j = 1; j < rectangle.cols_count; ++j) {
+            row[col_idx] = rectangle.get(last_row_idx, j);
             col_idx++;
         }
     }
+
 
     data_element compute_rest(const size_t row_idx)
     {
 	    assert(results_cols == row.size());
 	    const size_t rectangle_rows_count = results_rows - row_idx;
 	    const size_t rectangle_cols_count = results_cols;
-	    std::array<std::array<data_element, rectangle_cols_count>, rectangle_rows_count> rectangle;
+	    Rectangle rectangle{rectangle_rows_count, rectangle_cols_count};
 
-	    // Fill first row.
-        for (size_t j = 0; j < row.size(); ++j) {
-            rectangle[0][j] = row[j];
-        }
-
-        // Fill first column.
-        for (size_t i = 0; i < rectangle_rows_count; ++i) {
-            rectangle[i][0] = row_idx + i;
-        }
+        rectangle.copy_to_first_row(row);
+        rectangle.fill_first_column(row_idx);
 
         for (size_t i = 1; i < rectangle_rows_count; ++i) {
             for (size_t j = 1; j < rectangle_cols_count; ++j) {
@@ -261,7 +274,7 @@ private:
             }
         }
 
-        return rectangle[rectangle_rows_count - 1][rectangle_cols_count - 1];
+        return rectangle.get(rectangle_rows_count - 1, rectangle_cols_count - 1);
     }
 
 	/// Compute with vector instructions.
