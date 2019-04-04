@@ -132,7 +132,7 @@ private:
 
         array_type get_diagonal(int row, int col, int count) const
         {
-            array_type array;
+            array_type array{};
             size_t array_idx = 0;
             for (int i = row, j = col; i > row-count && j < col+count; i--, j++) {
                 array[array_idx] = rectangle[i][j];
@@ -372,7 +372,7 @@ private:
     {
 	    const int from_idx = idx + stripe_size - 1;
 	    const int to_idx = idx;
-        array_type arr;
+        array_type arr{};
         size_t arr_idx = 0;
         for (int i = from_idx; i >= to_idx; i--) {
             arr[arr_idx] = array[i];
