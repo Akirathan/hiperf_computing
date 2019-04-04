@@ -15,6 +15,7 @@ public:
         rectangle_tests();
         std::cout << "Rectangle tests passed" << std::endl;
         functional_tests();
+        detailed_functional_tests_sse();
         bigger_functional_tests();
         std::cout << "All functional tests passed" << std::endl;
     }
@@ -80,6 +81,46 @@ private:
         compare_both(a1.begin(), a1.end(), a2.begin(), a2.end());
     }
 
+    void detailed_functional_tests_sse()
+    {
+        auto a1 = {1, 2, 3, 4, 5};
+        auto a2 = {9, 8, 3, 7, 1};
+        levenstein<policy_sse> lev{a1.begin(), a1.end(), a2.begin(), a2.end()};
+
+        lev.compute_first_part_of_stripe(4);
+        assert(lev.row[0] == 4);
+        assert_vector_equals(lev.vector_y, {4, 3, 2, 3});
+        assert_vector_equals(lev.vector_w, {3, 2, 3, 4});
+        assert_vector_equals(lev.vector_z, {3, 2, 2, 3});
+
+        lev.compute_one_stripe_diagonal(4, 1);
+        assert(lev.row[1] == 4);
+        assert_vector_equals(lev.vector_y, {4, 3, 3, 4});
+        assert_vector_equals(lev.vector_w, {3, 3, 4, 5});
+        assert_vector_equals(lev.vector_z, {3, 2, 3, 4});
+
+        lev.compute_one_stripe_diagonal(4, 2);
+        assert(lev.row[2] == 4);
+        assert_vector_equals(lev.vector_y, {4, 2, 4, 5});
+        assert_vector_equals(lev.vector_z, {3, 3, 4, 5});
+
+        lev.compute_last_part_of_stripe(4);
+        assert(lev.row[3] == 3);
+        assert(lev.row[4] == 3);
+        assert(lev.row[5] == 4);
+
+        std::cout << "FunctionalTester: detailed_functional_tests_sse passed" << std::endl;
+    }
+
+
+    void assert_vector_equals(const __m128i &vector, const std::array<int, 4> &array) const
+    {
+        auto arr_from_vec = policy_sse::copy_to_array(vector);
+        for (size_t i = 0; i < array.size(); ++i) {
+            assert(array[i] == arr_from_vec[i]);
+        }
+    }
+
     void bigger_functional_tests()
     {
         for (size_t i = 0; i < 5; ++i) {
@@ -88,6 +129,8 @@ private:
 
             compare_both(vec1.begin(), vec1.end(), vec2.begin(), vec2.end());
         }
+
+        std::cout << "FunctionalTester: bigger_functional_tests passed" << std::endl;
     }
 
     template <typename It1, typename It2>
