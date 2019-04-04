@@ -381,21 +381,6 @@ private:
         return policy::copy_to_vector(arr);
     }
 
-	void store_vector_to_diagonal(size_t bottom_left_row, size_t bottom_left_col, vector_type src_vec)
-	{
-	    const size_t row_from = bottom_left_row;
-	    const size_t row_until = bottom_left_row - stripe_size + 1;
-	    const size_t col_from = bottom_left_col;
-	    const size_t col_until = bottom_left_col + stripe_size - 1;
-        array_type tmp_array = policy::copy_to_array(src_vec);
-        size_t array_idx = 0;
-        for (size_t i = row_from, j = col_from; i >= row_until && j <= col_until; i--, j++)
-        {
-            results[i][j] = tmp_array[array_idx];
-            array_idx++;
-        }
-	}
-
 	bool is_index_in_boundaries(size_t i, size_t j) const
 	{
 		return (i >= 0 && i < total_rows_count) && (j >= 0 && j < total_cols_count);
