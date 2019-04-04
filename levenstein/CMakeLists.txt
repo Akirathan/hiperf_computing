@@ -17,7 +17,7 @@ if (USE_SSE)
     add_compile_options("-msse4.2")
     add_compile_definitions("USE_SSE")
 elseif(USE_AVX512)
-    add_compile_definitions("-mavx512f")
+    add_compile_options("-mavx512f")
     add_compile_definitions("USE_AVX512")
 endif()
 
