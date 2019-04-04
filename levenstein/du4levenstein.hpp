@@ -275,7 +275,7 @@ private:
         }
     }
 
-    data_element compute_rest(const size_t upper_row_idx)
+    data_element compute_rest(size_t upper_row_idx)
     {
         assert(upper_row_idx < total_rows_count);
 	    assert(total_cols_count == row.size());
@@ -286,8 +286,11 @@ private:
         assert(rectangle_rows_count > 1);
 	    Rectangle rectangle{rectangle_rows_count, rectangle_cols_count};
 
+	    // Rectangle starts actually one row above upper_row_idx.
+	    upper_row_idx--;
+
         rectangle.copy_to_first_row(row);
-        rectangle.fill_first_column_with_value_incrementing(upper_row_idx - 1);
+        rectangle.fill_first_column_with_value_incrementing(upper_row_idx);
 
         for (size_t rectangle_i = 1; rectangle_i < rectangle_rows_count; ++rectangle_i) {
             for (size_t rectangle_j = 1; rectangle_j < rectangle_cols_count; ++rectangle_j) {
