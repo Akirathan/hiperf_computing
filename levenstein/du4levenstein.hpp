@@ -423,8 +423,10 @@ struct policy_sse {
     static vector_type get_vector_1()
     {
         if (!vector_1_initialized) {
-            array_type arr = {1, 1, 1, 1};
-            vector_1 = _mm_load_si128(reinterpret_cast<__m128i *>(arr.data()));
+            vector_1 = _mm_insert_epi32(vector_1, 1, 0);
+            vector_1 = _mm_insert_epi32(vector_1, 1, 1);
+            vector_1 = _mm_insert_epi32(vector_1, 1, 2);
+            vector_1 = _mm_insert_epi32(vector_1, 1, 3);
             vector_1_initialized = true;
         }
         return vector_1;
@@ -432,8 +434,12 @@ struct policy_sse {
 
     static vector_type copy_to_vector(const array_type &array)
     {
-        aligned_array = array;
-        return _mm_load_si128(reinterpret_cast<__m128i *>(aligned_array.data()));
+        vector_type vec{};
+        vec = _mm_insert_epi32(vec, array[0], 0);
+        vec = _mm_insert_epi32(vec, array[1], 1);
+        vec = _mm_insert_epi32(vec, array[2], 2);
+        vec = _mm_insert_epi32(vec, array[3], 3);
+        return vec;
     }
 
     static vector_type compute_levenstein_distance(vector_type y, vector_type w, vector_type z,
@@ -469,7 +475,7 @@ struct policy_avx512 {
     static vector_type get_vector_1()
     {
         if (!vector_1_initialized) {
-            vector_1 = _mm512_load_si512(reinterpret_cast<void *>(array_1.data()));
+            vector_1 = _mm512_load_epi32(reinterpret_cast<void *>(array_1.data()));
             vector_1_initialized = true;
         }
         return vector_1;
@@ -477,8 +483,36 @@ struct policy_avx512 {
 
     static vector_type copy_to_vector(const array_type &array)
     {
-        aligned_array = array;
-        return _mm512_load_si512(reinterpret_cast<void *>(aligned_array.data()));
+        __m128i first{};
+        first = _mm_insert_epi32(first, array[0], 0);
+        first = _mm_insert_epi32(first, array[1], 1);
+        first = _mm_insert_epi32(first, array[2], 2);
+        first = _mm_insert_epi32(first, array[3], 3);
+
+        __m128i second{};
+        second = _mm_insert_epi32(second, array[4], 0);
+        second = _mm_insert_epi32(second, array[5], 1);
+        second = _mm_insert_epi32(second, array[6], 2);
+        second = _mm_insert_epi32(second, array[7], 3);
+
+        __m128i third{};
+        third = _mm_insert_epi32(third, array[8], 0);
+        third = _mm_insert_epi32(third, array[9], 1);
+        third = _mm_insert_epi32(third, array[10], 2);
+        third = _mm_insert_epi32(third, array[11], 3);
+
+        __m128i fourth{};
+        fourth = _mm_insert_epi32(fourth, array[12], 0);
+        fourth = _mm_insert_epi32(fourth, array[13], 1);
+        fourth = _mm_insert_epi32(fourth, array[14], 2);
+        fourth = _mm_insert_epi32(fourth, array[15], 3);
+
+        vector_type vec{};
+        vec = _mm512_inserti32x4(vec, first, 0);
+        vec = _mm512_inserti32x4(vec, second, 1);
+        vec = _mm512_inserti32x4(vec, third, 2);
+        vec = _mm512_inserti32x4(vec, fourth, 3);
+        return vec;
     }
 
     static array_type copy_to_array(vector_type vec)
