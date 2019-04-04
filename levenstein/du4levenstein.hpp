@@ -566,6 +566,17 @@ struct policy_avx512 {
         __m128i first_vec = _mm512_extracti32x4_epi32(vector, 0);
         return _mm_extract_epi32(first_vec, 0);
     }
+
+    /// Shifts vector left by 4B - what was on index 1 will be on 0. (Shift toward lower indexes).
+    static void shift_left(vector_type &vector)
+    {
+        auto array = copy_to_array(vector);
+        array_type new_array{};
+        for (size_t i = 0; i < array.size() - 1; ++i) {
+            new_array[i] = array[i+1];
+        }
+        vector = copy_to_vector(new_array);
+    }
 };
 
 #endif
