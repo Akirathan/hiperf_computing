@@ -36,17 +36,19 @@ public:
 	levenstein(I1 i1b, I1 i1e, I2 i2b, I2 i2e)
         : input_array_1(i1b, i1e),
           input_array_2(i2b, i2e),
-          results_rows{input_array_2.size() + 1},
-          results_cols{input_array_1.size() + 1},
+          total_rows_count{input_array_2.size() + 1},
+          total_cols_count{input_array_1.size() + 1},
           vector_stripe_left_boundary{1},
-          vector_stripe_right_boundary{results_cols - stripe_size},
+          vector_stripe_right_boundary{total_cols_count - stripe_size},
           cols_left_boundary{1},
           array_y{},
           array_w{},
-          array_z{},
-          row_idx{0}
+          array_z{}
 	{
-        row.resize(results_cols);
+        row.resize(total_cols_count);
+        for (size_t i = 0; i < row.size(); ++i) {
+            row[i] = i;
+        }
 	}
 
 	data_element compute()
@@ -56,13 +58,20 @@ public:
 	        return dummy_lev.compute();
 	    }
 
-	    size_t i = stripe_size;
-		for (; i < results_rows; i += stripe_size) {
-			compute_stripe(i);
+	    size_t bottom_row_idx = stripe_size;
+		for (; bottom_row_idx < total_rows_count; bottom_row_idx += stripe_size) {
+			compute_stripe(bottom_row_idx);
 		}
 
-		i = i - stripe_size + 1;
-		return compute_rest(i);
+		const size_t last_row_idx = total_rows_count - 1;
+		const size_t upper_row_idx = bottom_row_idx - stripe_size + 1;
+		if (upper_row_idx > last_row_idx) {
+		    // We computed everything in stripes.
+		    return row[row.size() - 1];
+		}
+		else {
+            return compute_rest(upper_row_idx);
+		}
 	}
 
 private:
@@ -71,8 +80,8 @@ private:
 	constexpr static size_t stripe_size = policy::register_size / (sizeof(data_element) * 8);
 	const std::vector<data_element> input_array_1;
 	const std::vector<data_element> input_array_2;
-	const size_t results_rows;
-	const size_t results_cols;
+	const size_t total_rows_count;
+	const size_t total_cols_count;
 	const size_t vector_stripe_left_boundary;
 	const size_t vector_stripe_right_boundary;
 	const size_t cols_left_boundary;
@@ -81,7 +90,6 @@ private:
 	array_type array_w;
 	array_type array_z;
 	std::vector<data_element> row;
-	size_t row_idx;
 
     class Rectangle {
     public:
@@ -110,15 +118,15 @@ private:
 
         void copy_to_first_row(const std::vector<data_element> &src_row)
         {
-            for (size_t i = 0; i < src_row.size(); ++i) {
+            for (size_t i = 0; i < cols_count; ++i) {
                 rectangle[0][i] = src_row[i];
             }
         }
 
-        void fill_first_column(const size_t row_idx)
+        void fill_first_column_with_value_incrementing(const size_t value)
         {
             for (size_t i = 0; i < rows_count; ++i) {
-                rectangle[i][0] = row_idx + i;
+                rectangle[i][0] = value + i;
             }
         }
 
@@ -133,10 +141,10 @@ private:
             return array;
         }
 
-        void set_diagonal(size_t row, size_t col, const array_type &array, size_t count)
+        void set_diagonal(int row, int col, const array_type &array, int count)
         {
             size_t array_idx = 0;
-            for (size_t i = row, j = col; i > row-count && j < col+count; i--, j++) {
+            for (int i = row, j = col; i > row-count && j < col+count; i--, j++) {
                 rectangle[i][j] = array[array_idx];
                 array_idx++;
             }
@@ -146,37 +154,39 @@ private:
         std::vector<std::vector<data_element>> rectangle;
     };
 
-	/// @param i lower index of stripe's row.
-	void compute_stripe(size_t i)
+	/// @param bottom_row_idx lower index of stripe's row.
+	void compute_stripe(size_t bottom_row_idx)
 	{
-		assert(is_stripe_vector_computable(i));
+		assert(is_stripe_vector_computable(bottom_row_idx));
 
-		compute_first_part_of_stripe();
+		compute_first_part_of_stripe(bottom_row_idx);
 
 		// Start vector computation.
 		for (size_t j = vector_stripe_left_boundary; j <= vector_stripe_right_boundary; ++j) {
-			compute_one_stripe_diagonal(i, j);
+			compute_one_stripe_diagonal(bottom_row_idx, j);
 		}
 
-		compute_last_part_of_stripe();
+		compute_last_part_of_stripe(bottom_row_idx);
 	}
 
 	/// Left upper triangle
-	void compute_first_part_of_stripe()
+	void compute_first_part_of_stripe(size_t bottom_row_idx)
 	{
 	    const size_t rectangle_row_count = stripe_size + 1;
 	    const size_t rectangle_col_count = stripe_size;
 	    Rectangle rectangle{rectangle_row_count, rectangle_col_count};
 
         rectangle.copy_to_first_row(row);
-        rectangle.fill_first_column(row_idx);
+        rectangle.fill_first_column_with_value_incrementing(bottom_row_idx - stripe_size);
 
+        const size_t upper_row_idx = bottom_row_idx - rectangle_row_count + 1;
         const size_t operations_num_from = stripe_size - 1;
         const size_t operations_num_until = 0;
         size_t operations_num = operations_num_from;
-        for (size_t i = 1; i < rectangle_row_count; i++) {
-            for (size_t j = 1; j <= operations_num ; ++j) {
-                compute_distance_in_rectangle(rectangle, i, j);
+        for (size_t rectangle_i = 1; rectangle_i < rectangle_row_count; rectangle_i++) {
+            for (size_t rectangle_j = 1; rectangle_j <= operations_num ; ++rectangle_j) {
+                compute_distance_in_rectangle(rectangle, rectangle_i, rectangle_j,
+                        upper_row_idx + rectangle_i, rectangle_j);
             }
 
             operations_num--;
@@ -186,6 +196,7 @@ private:
         }
 
         store_arrays_from_rectangle(rectangle);
+        row[0] = rectangle.get(rectangle.rows_count - 1, 0);
 	}
 
 	void store_arrays_from_rectangle(const Rectangle &rectangle)
@@ -193,21 +204,53 @@ private:
         array_y = rectangle.get_diagonal(rectangle.rows_count - 1, 0, stripe_size);
 
         for (size_t i = 0; i < array_y.size() - 1; ++i) {
-            array_w[i] = array_y[i];
+            array_w[i] = array_y[i+1];
         }
         array_w[array_w.size() - 1] = row[stripe_size];
 
         array_z = rectangle.get_diagonal(rectangle.rows_count - 2, 0, stripe_size);
     }
 
-	void compute_distance_in_rectangle(Rectangle &rectangle, size_t i, size_t j) const
+	void compute_distance_in_rectangle(Rectangle &rectangle, size_t rectangle_i, size_t rectangle_j,
+	        size_t total_i, size_t total_j) const
     {
-	    data_element upper = rectangle.get(i-1, j);
-	    data_element left_upper = rectangle.get(i-1, j-1);
-	    data_element left = rectangle.get(i, j-1);
-	    data_element a = input_array_1[j-1];
-	    data_element b = input_array_2[i-1];
-	    rectangle.set(i, j, compute_levenstein_distance(upper, left_upper, left, a, b));
+	    data_element upper = rectangle.get(rectangle_i-1, rectangle_j);
+	    data_element left_upper = rectangle.get(rectangle_i-1, rectangle_j-1);
+	    data_element left = rectangle.get(rectangle_i, rectangle_j-1);
+	    data_element a = input_array_1[total_j-1];
+	    data_element b = input_array_2[total_i-1];
+	    rectangle.set(rectangle_i, rectangle_j, compute_levenstein_distance(upper, left_upper, left, a, b));
+    }
+
+	void compute_last_part_of_stripe(size_t bottom_row_idx)
+    {
+	    const size_t rectangle_row_count = stripe_size;
+	    const size_t rectangle_col_count = stripe_size;
+	    Rectangle rectangle{rectangle_row_count, rectangle_col_count};
+
+	    copy_arrays_to_rectangle_in_last_part(rectangle);
+
+	    const size_t upper_row_idx = bottom_row_idx - stripe_size + 1;
+	    const size_t left_col_idx = total_cols_count - stripe_size;
+	    const size_t operations_num_from = 1;
+	    const size_t operations_num_until = stripe_size - 1;
+	    size_t operations_num = operations_num_from;
+        for (size_t rectangle_i = 1; rectangle_i < rectangle_row_count; ++rectangle_i) {
+            for (size_t rectangle_j = rectangle_col_count - operations_num;
+                 rectangle_j < rectangle_col_count;
+                 ++rectangle_j)
+            {
+                compute_distance_in_rectangle(rectangle, rectangle_i, rectangle_j,
+                        upper_row_idx + rectangle_i, left_col_idx + rectangle_j);
+            }
+
+            operations_num++;
+            if (operations_num > operations_num_until) {
+                break;
+            }
+        }
+
+        store_row_from_rectangle_in_last_part(rectangle);
     }
 
     void copy_arrays_to_rectangle_in_last_part(Rectangle &rectangle) const
@@ -221,56 +264,35 @@ private:
         rectangle.set_diagonal(y_from_row, y_from_col, array_y, array_y.size());
     }
 
-	void compute_last_part_of_stripe()
-    {
-	    const size_t rectangle_row_count = stripe_size;
-	    const size_t rectangle_col_count = stripe_size;
-	    Rectangle rectangle{rectangle_row_count, rectangle_col_count};
-
-	    copy_arrays_to_rectangle_in_last_part(rectangle);
-
-	    const size_t operations_num_from = 1;
-	    const size_t operations_num_until = stripe_size - 1;
-	    size_t operations_num = operations_num_from;
-        for (size_t i = 1; i < rectangle_row_count; ++i) {
-            for (size_t j = rectangle_col_count - operations_num; j < rectangle_col_count; ++j) {
-                compute_distance_in_rectangle(rectangle, i, j);
-            }
-
-            operations_num++;
-            if (operations_num > operations_num_until) {
-                break;
-            }
-        }
-
-        store_row_from_rectangle_in_last_part(rectangle);
-    }
-
     void store_row_from_rectangle_in_last_part(const Rectangle &rectangle)
     {
         const size_t last_row_idx = rectangle.rows_count - 1;
 
-        size_t col_idx = results_cols - stripe_size + 1;
+        size_t col_idx = total_cols_count - stripe_size + 1;
         for (size_t j = 1; j < rectangle.cols_count; ++j) {
             row[col_idx] = rectangle.get(last_row_idx, j);
             col_idx++;
         }
     }
 
-
-    data_element compute_rest(const size_t row_idx)
+    data_element compute_rest(const size_t upper_row_idx)
     {
-	    assert(results_cols == row.size());
-	    const size_t rectangle_rows_count = results_rows - row_idx;
-	    const size_t rectangle_cols_count = results_cols;
+        assert(upper_row_idx < total_rows_count);
+	    assert(total_cols_count == row.size());
+	    // We need one row more so we can copy current global variable row inside
+	    // the first row of rectangle.
+	    size_t rectangle_rows_count = total_rows_count - upper_row_idx + 1;
+	    size_t rectangle_cols_count = total_cols_count;
+        assert(rectangle_rows_count > 1);
 	    Rectangle rectangle{rectangle_rows_count, rectangle_cols_count};
 
         rectangle.copy_to_first_row(row);
-        rectangle.fill_first_column(row_idx);
+        rectangle.fill_first_column_with_value_incrementing(upper_row_idx - 1);
 
-        for (size_t i = 1; i < rectangle_rows_count; ++i) {
-            for (size_t j = 1; j < rectangle_cols_count; ++j) {
-                compute_distance_in_rectangle(rectangle, i, j);
+        for (size_t rectangle_i = 1; rectangle_i < rectangle_rows_count; ++rectangle_i) {
+            for (size_t rectangle_j = 1; rectangle_j < rectangle_cols_count; ++rectangle_j) {
+                compute_distance_in_rectangle(rectangle, rectangle_i, rectangle_j,
+                        upper_row_idx + rectangle_i, rectangle_j);
             }
         }
 
@@ -294,14 +316,14 @@ private:
 
 		vector_type result = compute_levenstein_distance(vector_y, vector_w, vector_z, vector_a, vector_b);
 
-        replace_arrays_with_result(result, j);
+        auto result_array = policy::copy_to_array(result);
+        replace_arrays_with_result(result_array, j);
+        row[j] = result_array[0];
 	}
 
 	/// Updates internal buffers with new results of vector computation.
-	void replace_arrays_with_result(vector_type new_result, const size_t col_idx)
+	void replace_arrays_with_result(const array_type &new_result_array, const size_t col_idx)
     {
-        auto new_result_array = policy::copy_to_array(new_result);
-
 	    array_z = array_w;
 	    array_y = new_result_array;
 
@@ -310,7 +332,7 @@ private:
         }
         size_t row_element_idx = col_idx + stripe_size;
 
-        bool last_iteration = (col_idx + stripe_size == results_cols);
+        bool last_iteration = (col_idx + stripe_size == total_cols_count);
         if (!last_iteration) {
             array_w[array_w.size() - 1] = row[row_element_idx];
         }
@@ -373,7 +395,7 @@ private:
 
 	bool is_index_in_boundaries(size_t i, size_t j) const
 	{
-		return (i >= 0 && i < results_rows) && (j >= 0 && j < results_cols);
+		return (i >= 0 && i < total_rows_count) && (j >= 0 && j < total_cols_count);
 	}
 
 	bool is_stripe_vector_computable(size_t i) const
