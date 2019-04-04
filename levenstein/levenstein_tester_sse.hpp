@@ -17,6 +17,7 @@ public:
 
     void run_all_tests()
     {
+        test_policy();
         test_compute_vector();
         test_compute_vector_same();
         test_random_vectors();
@@ -89,6 +90,28 @@ private:
             auto vector_array = compute_vector(arrays.y, arrays.w, arrays.z, arrays.a, arrays.b);
             assert_same(scalar_array, vector_array);
         }
+    }
+
+    void test_policy()
+    {
+        array_t array = {1, 2, 3, 4};
+        vector_type vec = policy_sse::copy_to_vector(array);
+        int first = policy_sse::get_first(vec);
+        assert(first == 1);
+
+        policy_sse::set_last_idx(vec, 42);
+        int last = _mm_extract_epi32(vec, 3);
+        assert(last == 42);
+
+        // Test left shift
+        policy_sse::shift_left(vec);
+        auto arr = policy_sse::copy_to_array(vec);
+        assert(arr[0] == 2);
+        assert(arr[1] == 3);
+        assert(arr[2] == 42);
+        assert(arr[3] == 0);
+
+        std::cout << "LevensteinTester: test_policy passed" << std::endl;
     }
 
     array_t compute_scalar(array_t y, array_t w, array_t z, array_t a, array_t b) const
