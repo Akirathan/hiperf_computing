@@ -41,9 +41,9 @@ public:
           vector_stripe_left_boundary{1},
           vector_stripe_right_boundary{total_cols_count - stripe_size},
           cols_left_boundary{1},
-          array_y{},
-          array_w{},
-          array_z{}
+          vector_y{},
+          vector_w{},
+          vector_z{}
 	{
         row.resize(total_cols_count);
         for (size_t i = 0; i < row.size(); ++i) {
@@ -85,10 +85,9 @@ private:
 	const size_t vector_stripe_left_boundary;
 	const size_t vector_stripe_right_boundary;
 	const size_t cols_left_boundary;
-	matrix_type results;
-	array_type array_y;
-	array_type array_w;
-	array_type array_z;
+	vector_type vector_y;
+	vector_type vector_w;
+	vector_type vector_z;
 	std::vector<data_element> row;
 
     class Rectangle {
@@ -195,20 +194,21 @@ private:
             }
         }
 
-        store_arrays_from_rectangle(rectangle);
+        store_vectors_from_rectangle(rectangle);
         row[0] = rectangle.get(rectangle.rows_count - 1, 0);
 	}
 
-	void store_arrays_from_rectangle(const Rectangle &rectangle)
+	void store_vectors_from_rectangle(const Rectangle &rectangle)
     {
-        array_y = rectangle.get_diagonal(rectangle.rows_count - 1, 0, stripe_size);
+        auto array_y = rectangle.get_diagonal(rectangle.rows_count - 1, 0, stripe_size);
+        vector_y = policy::copy_to_vector(array_y);
 
-        for (size_t i = 0; i < array_y.size() - 1; ++i) {
-            array_w[i] = array_y[i+1];
-        }
-        array_w[array_w.size() - 1] = row[stripe_size];
+        vector_w = vector_y;
+        policy::shift_left(vector_w);
+        policy::set_last_idx(vector_w, row[stripe_size]);
 
-        array_z = rectangle.get_diagonal(rectangle.rows_count - 2, 0, stripe_size);
+        auto array_z = rectangle.get_diagonal(rectangle.rows_count - 2, 0, stripe_size);
+        vector_z = policy::copy_to_vector(array_z);
     }
 
 	void compute_distance_in_rectangle(Rectangle &rectangle, size_t rectangle_i, size_t rectangle_j,
@@ -257,10 +257,12 @@ private:
     {
         const size_t z_from_row = rectangle.rows_count - 2;
         const size_t z_from_col = 0;
+        auto array_z = policy::copy_to_array(vector_z);
         rectangle.set_diagonal(z_from_row, z_from_col, array_z, array_z.size() - 1);
 
         const size_t y_from_row = rectangle.rows_count - 1;
         const size_t y_from_col = 0;
+        auto array_y = policy::copy_to_array(vector_y);
         rectangle.set_diagonal(y_from_row, y_from_col, array_y, array_y.size());
     }
 
@@ -307,37 +309,30 @@ private:
 	{
 		assert(is_stripe_diagonal_vector_computable(i, j));
 
-		vector_type vector_y = policy::copy_to_vector(array_y);
-		vector_type vector_w = policy::copy_to_vector(array_w);
-		vector_type vector_z = policy::copy_to_vector(array_z);
 		vector_type vector_a = get_vector_from_array(input_array_1, j - 1);
 		vector_type vector_b = get_vector_from_array_reversed(input_array_2, i - stripe_size);
 
-		// debug
-        auto arr_a = policy::copy_to_array(vector_a);
-        auto arr_b = policy::copy_to_array(vector_b);
-
 		vector_type result = compute_levenstein_distance(vector_y, vector_w, vector_z, vector_a, vector_b);
 
-        auto result_array = policy::copy_to_array(result);
-        replace_arrays_with_result(result_array, j);
-        row[j] = result_array[0];
+        replace_arrays_with_result(result, j);
+        data_element first_element = policy::get_first(result);
+        row[j] = first_element;
 	}
 
 	/// Updates internal buffers with new results of vector computation.
-	void replace_arrays_with_result(const array_type &new_result_array, const size_t col_idx)
+	void replace_arrays_with_result(const vector_type &result_vector, const size_t col_idx)
     {
-	    array_z = array_w;
-	    array_y = new_result_array;
+	    vector_z = vector_w;
+	    vector_y = result_vector;
 
-        for (size_t i = 0; i < array_w.size() - 1; ++i) {
-            array_w[i] = array_y[i + 1];
-        }
+        vector_w = vector_y;
+        policy::shift_left(vector_w);
+
         size_t row_element_idx = col_idx + stripe_size;
 
         bool last_iteration = (col_idx + stripe_size == total_cols_count);
         if (!last_iteration) {
-            array_w[array_w.size() - 1] = row[row_element_idx];
+            policy::set_last_idx(vector_w, row[row_element_idx]);
         }
     }
 
@@ -452,6 +447,24 @@ struct policy_sse {
 	                        _mm_add_epi32(z, _mm_andnot_si128(_mm_cmpeq_epi32(a, b), vector_1)));
 		return res;
     }
+
+    /// Set last 4 bytes of vector.
+    static void set_last_idx(vector_type &vector, data_element value)
+    {
+        vector = _mm_insert_epi32(vector, value, 3);
+    }
+
+    /// Get first 4 bytes of vector.
+    static data_element get_first(vector_type &vector)
+    {
+        return _mm_extract_epi32(vector, 0);
+    }
+
+    /// Shifts vector left by 4B - what was on index 1 will be on 0. (Shift toward lower indexes).
+    static void shift_left(vector_type &vector)
+    {
+        vector = _mm_srli_si128(vector, 4);
+    }
 };
 
 
@@ -535,6 +548,23 @@ struct policy_avx512 {
 
         res = _mm512_min_epi32(res, z);
         return res;
+    }
+
+    static void set_last_idx(vector_type &vector, data_element value)
+    {
+        __m128i last_vec{};
+        last_vec = _mm_insert_epi32(last_vec, 0, 0);
+        last_vec = _mm_insert_epi32(last_vec, 0, 1);
+        last_vec = _mm_insert_epi32(last_vec, 0, 2);
+        last_vec = _mm_insert_epi32(last_vec, value, 3);
+
+        vector = _mm512_inserti32x4(vector, last_vec, 3);
+    }
+
+    static data_element get_first(vector_type &vector)
+    {
+        __m128i first_vec = _mm512_extracti32x4_epi32(vector, 0);
+        return _mm_extract_epi32(first_vec, 0);
     }
 };
 
