@@ -73,6 +73,11 @@ private:
         a1 = {1, 2, 3};
         a2 = {4, 2, 1, 5};
         compare_both(a1.begin(), a1.end(), a2.begin(), a2.end());
+
+        // Input string with length 4
+        a1 = {1, 2, 3, 4};
+        a2 = {5, 2, 5, 1};
+        compare_both(a1.begin(), a1.end(), a2.begin(), a2.end());
     }
 
     void bigger_functional_tests()
