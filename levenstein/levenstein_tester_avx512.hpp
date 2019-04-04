@@ -18,6 +18,7 @@ public:
     {
         test_compute_vector();
         test_random_vectors();
+        test_policy();
         std::cout << "Tests for AVX512 passed" << std::endl;
     }
 
@@ -81,6 +82,29 @@ private:
             auto vector_array = compute_vector(arrays.y, arrays.w, arrays.z, arrays.a, arrays.b);
             assert_same(scalar_array, vector_array);
         }
+    }
+    
+    void test_policy()
+    {
+        array_type array = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+        vector_type vec = policy_avx512::copy_to_vector(array);
+        int first = policy_avx512::get_first(vec);
+        assert(first == 1);
+
+        policy_avx512::set_last_idx(vec, 42);
+        int last = policy_avx512::copy_to_array(vec)[15];
+        assert(last == 42);
+
+        // Test left shift
+        policy_avx512::shift_left(vec);
+        auto arr = policy_avx512::copy_to_array(vec);
+        assert(arr[0] == 2);
+        assert(arr[1] == 3);
+        assert(arr[2] == 4);
+        assert(arr[3] == 5);
+        assert(arr[15] == 0);
+
+        std::cout << "LevensteinTester: test_policy passed" << std::endl;
     }
 
     arrays_t generate_all_arrays_random() const
