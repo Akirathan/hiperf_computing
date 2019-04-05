@@ -16,9 +16,9 @@ public:
 
     void run_all_tests()
     {
+        test_policy();
         test_compute_vector();
         test_random_vectors();
-        test_policy();
         std::cout << "Tests for AVX512 passed" << std::endl;
     }
 
@@ -28,6 +28,7 @@ private:
     using data_element = typename policy_avx512::data_element;
     static constexpr auto tmp_array1 = {1, 2};
     static constexpr auto tmp_array2 = {3, 4};
+    static constexpr array_type simple_array = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     levenstein<policy_avx512> levenstein_;
 
     struct arrays_t {
@@ -86,35 +87,76 @@ private:
     
     void test_policy()
     {
-        array_type array = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-        vector_type vec = policy_avx512::copy_to_vector(array);
-        int first = policy_avx512::get_first(vec);
+        std::cout << "Running AVX512 policy tests..." << std::endl;
+
+        vector_type vec = policy_avx512::copy_to_vector(simple_array);
+
+        // Check whether the vector contains correct values.
+        auto tmp_array = policy_avx512::copy_to_array(vec);
+        assert_same(simple_array, tmp_array);
+
+        test_policy_get_first();
+        test_policy_set_last_idx();
+        test_policy_right_shift();
+
+        std::cout << "AVX512 policy tests passed" << std::endl;
+    }
+
+    void test_policy_set_last_idx()
+    {
+        std::cout << "Running AVX512 test_policy_set_last_idx..." << std::endl;
+
+        vector_type vec = policy_avx512::copy_to_vector(simple_array);
+        policy_avx512::set_last_idx(vec, 42);
+        auto arr = policy_avx512::copy_to_array(vec);
+
+        for (size_t i = 0; i < 15; ++i) {
+            assert(arr[i] == i+1);
+        }
+        assert(arr[15] == 42);
+
+        std::cout << "AVX512 test_policy_set_last_idx passed" << std::endl;
+    }
+
+    void test_policy_get_first()
+    {
+        std::cout << "Running AVX512 test_policy_get_first..." << std::endl;
+
+        vector_type vec = policy_avx512::copy_to_vector(simple_array);
+        data_element first = policy_avx512::get_first(vec);
         assert(first == 1);
 
-        policy_avx512::set_last_idx(vec, 42);
-        int last = policy_avx512::copy_to_array(vec)[15];
-        assert(last == 42);
+        auto arr = policy_avx512::copy_to_array(vec);
 
-        // Test left shift
+        for (size_t i = 0; i < 16; ++i) {
+            assert(arr[i] == i+1);
+        }
+
+        std::cout << "AVX512 test_policy_get_first passed" << std::endl;
+    }
+
+    void test_policy_right_shift()
+    {
+        std::cout << "Running AVX512 test_policy_right_shift..." << std::endl;
+
+        vector_type vec = policy_avx512::copy_to_vector(simple_array);
+
         policy_avx512::shift_right(vec);
         auto arr = policy_avx512::copy_to_array(vec);
-        assert(arr[0] == 2);
-        assert(arr[1] == 3);
-        assert(arr[2] == 4);
-        assert(arr[3] == 5);
+        for (size_t i = 0; i < 15; ++i) {
+            assert(arr[i] == i+2);
+        }
         assert(arr[15] == 0);
 
-        // Test other shift left
         policy_avx512::shift_right(vec);
         arr = policy_avx512::copy_to_array(vec);
-        assert(arr[0] == 3);
-        assert(arr[1] == 4);
-        assert(arr[2] == 5);
-        assert(arr[3] == 6);
+        for (size_t i = 0; i < 14; ++i) {
+            assert(arr[i] == i+3);
+        }
         assert(arr[14] == 0);
         assert(arr[15] == 0);
 
-        std::cout << "LevensteinTester: test_policy passed" << std::endl;
+        std::cout << "AVX512 test_policy_right_shift passed" << std::endl;
     }
 
     arrays_t generate_all_arrays_random() const
