@@ -103,8 +103,8 @@ private:
         int last = _mm_extract_epi32(vec, 3);
         assert(last == 42);
 
-        // Test left shift
-        policy_sse::shift_left(vec);
+        // Test right shift
+        policy_sse::shift_right(vec);
         auto arr = policy_sse::copy_to_array(vec);
         assert(arr[0] == 2);
         assert(arr[1] == 3);

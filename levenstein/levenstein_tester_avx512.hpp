@@ -96,12 +96,22 @@ private:
         assert(last == 42);
 
         // Test left shift
-        policy_avx512::shift_left(vec);
+        policy_avx512::shift_right(vec);
         auto arr = policy_avx512::copy_to_array(vec);
         assert(arr[0] == 2);
         assert(arr[1] == 3);
         assert(arr[2] == 4);
         assert(arr[3] == 5);
+        assert(arr[15] == 0);
+
+        // Test other shift left
+        policy_avx512::shift_right(vec);
+        arr = policy_avx512::copy_to_array(vec);
+        assert(arr[0] == 3);
+        assert(arr[1] == 4);
+        assert(arr[2] == 5);
+        assert(arr[3] == 6);
+        assert(arr[14] == 0);
         assert(arr[15] == 0);
 
         std::cout << "LevensteinTester: test_policy passed" << std::endl;

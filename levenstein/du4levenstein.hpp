@@ -204,7 +204,7 @@ private:
         vector_y = policy::copy_to_vector(array_y);
 
         vector_w = vector_y;
-        policy::shift_left(vector_w);
+        policy::shift_right(vector_w);
         policy::set_last_idx(vector_w, row[stripe_size]);
 
         auto array_z = rectangle.get_diagonal(rectangle.rows_count - 2, 0, stripe_size);
@@ -326,7 +326,7 @@ private:
 	    vector_y = result_vector;
 
         vector_w = vector_y;
-        policy::shift_left(vector_w);
+        policy::shift_right(vector_w);
 
         size_t row_element_idx = col_idx + stripe_size;
 
@@ -391,8 +391,8 @@ private:
 		return i >= stripe_size && j >= vector_stripe_left_boundary && j <= vector_stripe_right_boundary;
 	}
 
-	friend class LevensteinTester<policy>;
-	friend class FunctionalTester<policy>;
+	template <typename T> friend class LevensteinTester;
+	template <typename T> friend class FunctionalTester;
 };
 
 using matrix_type = std::vector<std::vector<int>>;
@@ -461,7 +461,7 @@ struct policy_sse {
     }
 
     /// Shifts vector left by 4B - what was on index 1 will be on 0. (Shift toward lower indexes).
-    static void shift_left(vector_type &vector)
+    static void shift_right(vector_type &vector)
     {
         vector = _mm_srli_si128(vector, 4);
     }
@@ -568,14 +568,12 @@ struct policy_avx512 {
     }
 
     /// Shifts vector left by 4B - what was on index 1 will be on 0. (Shift toward lower indexes).
-    static void shift_left(vector_type &vector)
+    static void shift_right(vector_type &vector)
     {
-        auto array = copy_to_array(vector);
-        array_type new_array{};
-        for (size_t i = 0; i < array.size() - 1; ++i) {
-            new_array[i] = array[i+1];
-        }
-        vector = copy_to_vector(new_array);
+        __m128i vec1 = _mm512_extracti32x4_epi32(vector, 0);
+        __m128i vec2 = _mm512_extracti32x4_epi32(vector, 1);
+        __m128i vec3 = _mm512_extracti32x4_epi32(vector, 2);
+        __m128i vec4 = _mm512_extracti32x4_epi32(vector, 3);
     }
 };
 
