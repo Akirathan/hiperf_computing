@@ -16,6 +16,9 @@ public:
         std::cout << "Rectangle tests passed" << std::endl;
         functional_tests();
         detailed_functional_tests_sse();
+#ifdef USE_AVX512
+        detailed_functional_tests_avx512();
+#endif
         bigger_functional_tests();
         std::cout << "All functional tests passed" << std::endl;
     }
@@ -112,6 +115,38 @@ private:
         std::cout << "FunctionalTester: detailed_functional_tests_sse passed" << std::endl;
     }
 
+#ifdef USE_AVX512
+    void detailed_functional_tests_avx512()
+    {
+        auto a1 = {23,25,13,15,18,20,23,25,13,18,25,11,12,17,20,23,24};
+        auto a2 = {30,30,30,15,18,20,30,30,30,30,30,30,30,30,20,23};
+        assert(a2.size() == 16);
+        assert(a1.size() == 17);
+
+        levenstein<policy_avx512> lev{a1.begin(), a1.end(), a2.begin(), a2.end()};
+        lev.compute_first_part_of_stripe(16);
+        assert(lev.row[0] == 16);
+        assert_vector512_equals(lev.vector_y, {16,15,14,13,11,9,7,6,5,6,7,9,11,13,14,15});
+        assert_vector512_equals(lev.vector_w, {15,14,13,11,9,7,6,5,6,7,9,11,13,14,15,16});
+        assert_vector512_equals(lev.vector_z, {15,14,13,12,10,8,6,5,5,6,8,10,12,13,14,15});
+
+        lev.compute_one_stripe_diagonal(16, 1);
+        assert(lev.row[1] == 15);
+        assert_vector512_equals(lev.vector_y, {15,15,14,12,10,8,7,6,6,7,8,10,12,14,15,16});
+        assert_vector512_equals(lev.vector_w, {15,14,12,10,8,7,6,6,7,8,10,12,14,15,16,17});
+
+        lev.compute_one_stripe_diagonal(16, 2);
+        assert(lev.row[2] == 16);
+        assert_vector512_equals(lev.vector_y, {16,15,13,11,9,8,7,6,7,8,9,11,13,15,16,17});
+
+        lev.compute_last_part_of_stripe(16);
+        assert(lev.row[3] == 15);
+        assert(lev.row[4] == 15);
+        assert(lev.row[11] == 13);
+        assert(lev.row[lev.row.size() - 1] == 12);
+    }
+#endif
+
 
     void assert_vector_equals(const __m128i &vector, const std::array<int, 4> &array) const
     {
@@ -120,6 +155,16 @@ private:
             assert(array[i] == arr_from_vec[i]);
         }
     }
+
+#ifdef USE_AVX512
+    void assert_vector512_equals(const __m512i &vector, const std::array<int, 16> &array) const
+    {
+        auto arr_from_vec = policy_avx512::copy_to_array(vector);
+        for (size_t i = 0; i < array.size(); ++i) {
+            assert(array[i] == arr_from_vec[i]);
+        }
+    }
+#endif
 
     void bigger_functional_tests()
     {
