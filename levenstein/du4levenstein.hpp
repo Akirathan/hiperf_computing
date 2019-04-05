@@ -12,25 +12,16 @@
 
 #include "dummy_levenstein.hpp"
 
-#if defined(USE_AVX512) && defined(USE_AVX) || \
-	defined(USE_AVX) && defined(USE_SSE) || \
-	defined(USE_SSE) && defined(USE_AVX512)
-#error Should define just one of USE_AVX512, USE_AVX or USE_SSE.
-#endif
-
 template <typename policy>
 class LevensteinTester;
 
 template <typename policy>
 class FunctionalTester;
 
-static constexpr bool use_dummy_impl = false;
-
 template< typename policy>
 class levenstein {
 public:
 	using data_element = int;
-	using matrix_type = std::vector<std::vector<data_element>>;
 
 	template< typename I1, typename I2>
 	levenstein(I1 i1b, I1 i1e, I2 i2b, I2 i2e)
@@ -53,11 +44,6 @@ public:
 
 	data_element compute()
 	{
-	    if (use_dummy_impl) {
-	        dummy_levenstein dummy_lev{input_array_1.begin(), input_array_1.end(), input_array_2.begin(), input_array_2.end()};
-	        return dummy_lev.compute();
-	    }
-
 	    size_t bottom_row_idx = stripe_size;
 		for (; bottom_row_idx < total_rows_count; bottom_row_idx += stripe_size) {
 			compute_stripe(bottom_row_idx);
@@ -395,7 +381,6 @@ private:
 	template <typename T> friend class FunctionalTester;
 };
 
-using matrix_type = std::vector<std::vector<int>>;
 
 struct policy_sse {
     using data_element = int;
@@ -403,8 +388,6 @@ struct policy_sse {
     constexpr static size_t register_size = 128;
     constexpr static size_t elements_count_per_register = register_size / (sizeof(data_element) * 8);
 	using array_type = std::array<data_element, elements_count_per_register>;
-    constexpr static size_t alignment = 16;
-    static __attribute__ ((aligned(alignment))) array_type aligned_array;
     static bool vector_1_initialized;
     static vector_type vector_1;
 
@@ -516,6 +499,7 @@ struct policy_avx {
     }
 };
 
+#ifdef USE_AVX512
 struct policy_avx512 {
     using data_element = int;
     using vector_type = __m512i;
@@ -523,7 +507,6 @@ struct policy_avx512 {
     constexpr static size_t elements_count_per_register = register_size / (sizeof(data_element) * 8); //16
     constexpr static size_t alignment = 64;
     using array_type = std::array<data_element, elements_count_per_register>;
-    static __attribute__ ((aligned(alignment))) array_type aligned_array;
     static __attribute__ ((aligned(alignment))) array_type array_1;
     static vector_type vector_1;
     static bool vector_1_initialized;
@@ -636,5 +619,6 @@ private:
         return tmp;
     }
 };
+#endif // USE_AVX512
 
 #endif
