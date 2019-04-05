@@ -18,13 +18,15 @@ HW_GCCOPTS = -msse4.2
 HW_RUNOPTS = sse
 endif
 
+TEST_VERSION = true
+
 #############################################################################
 
-ORIG_CPP_NAMES = \
+RELEASE_CPP_NAMES = \
 	du4levenstein \
 	exp4main
 
-ORIG_HEADER_FILES = \
+RELEASE_HEADER_FILES = \
 	du4levenstein.hpp \
 	task4.hpp \
 	testbed.hpp
@@ -40,9 +42,13 @@ TEST_HEDER_FILES = \
 	levenstein_tester_avx512.hpp \
 	dummy_levenstein.hpp
 
-CPP_NAMES = $(ORIG_CPP_NAMES)
-HEADER_FILES = $(ORIG_HEADER_FILES)
-
+ifeq "$(TEST_VERSION)" "true"
+	CPP_NAMES = $(TEST_CPP_NAMES)
+	HEADER_FILES = $(TEST_HEADER_FILES)
+else
+	CPP_NAME = $(RELEASE_CPP_NAMES)
+	HEADER_FILES = $(RELEASE_HEADER_FILES)
+endif
 
 TEMP_FOLDER = tmp.$(HW_NAME)
 
@@ -73,7 +79,11 @@ INCLUDED_HEADER_FILES = $(HEADER_FILES)
 INCLUDE_OPTS = \
 	-I.
 
-COMPILE_COMMAND = $(CXX) -c -ggdb -O3 -std=c++17 $(HW_GCCOPTS) $(INCLUDE_OPTS) -o$@ $<
+ifeq "$(TEST_VERSION)" "true"
+	COMPILE_COMMAND = $(CXX) -c -ggdb -std=c++17 $(HW_GCCOPTS) $(INCLUDE_OPTS) -o$@ $<
+else
+	COMPILE_COMMAND = $(CXX) -c -ggdb -O3 -std=c++17 $(HW_GCCOPTS) $(INCLUDE_OPTS) -o$@ $<
+endif
 
 LINK_COMMAND = $(CXX) -o$@ $^ 
 
