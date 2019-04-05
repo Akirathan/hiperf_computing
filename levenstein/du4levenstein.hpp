@@ -470,7 +470,7 @@ struct policy_sse {
 
 // TODO
 struct policy_avx {
-	constexpr static size_t register_size = 0; // TODO
+	constexpr static size_t register_size = 0;
 };
 
 struct policy_avx512 {
@@ -552,10 +552,8 @@ struct policy_avx512 {
 
     static void set_last_idx(vector_type &vector, data_element value)
     {
-        __m128i last_vec{};
-        last_vec = _mm_insert_epi32(last_vec, 0, 0);
-        last_vec = _mm_insert_epi32(last_vec, 0, 1);
-        last_vec = _mm_insert_epi32(last_vec, 0, 2);
+        __m128i last_vec = _mm512_extracti32x4_epi32(vector, 3);
+        // Set last element in last subvector.
         last_vec = _mm_insert_epi32(last_vec, value, 3);
 
         vector = _mm512_inserti32x4(vector, last_vec, 3);
@@ -574,6 +572,25 @@ struct policy_avx512 {
         __m128i vec2 = _mm512_extracti32x4_epi32(vector, 1);
         __m128i vec3 = _mm512_extracti32x4_epi32(vector, 2);
         __m128i vec4 = _mm512_extracti32x4_epi32(vector, 3);
+
+        data_element tmp = shift_right(vec4, 0);
+        tmp = shift_right(vec3, tmp);
+        tmp = shift_right(vec2, tmp);
+        shift_right(vec1, tmp);
+
+        vector = _mm512_inserti32x4(vector, vec1, 0);
+        vector = _mm512_inserti32x4(vector, vec2, 1);
+        vector = _mm512_inserti32x4(vector, vec3, 2);
+        vector = _mm512_inserti32x4(vector, vec4, 3);
+    }
+
+private:
+    static data_element shift_right(__m128i &vec, data_element insert_value)
+    {
+        data_element tmp = _mm_extract_epi32(vec, 0);
+        vec = _mm_srli_si128(vec, 4);
+        vec = _mm_insert_epi32(vec, insert_value, 3);
+        return tmp;
     }
 };
 
