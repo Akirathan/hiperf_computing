@@ -18,7 +18,7 @@ HW_GCCOPTS = -msse4.2
 HW_RUNOPTS = sse
 endif
 
-TEST_VERSION = true
+TEST_VERSION = false
 
 #############################################################################
 
@@ -46,7 +46,7 @@ ifeq "$(TEST_VERSION)" "true"
 	CPP_NAMES = $(TEST_CPP_NAMES)
 	HEADER_FILES = $(TEST_HEADER_FILES)
 else
-	CPP_NAME = $(RELEASE_CPP_NAMES)
+	CPP_NAMES = $(RELEASE_CPP_NAMES)
 	HEADER_FILES = $(RELEASE_HEADER_FILES)
 endif
 
