@@ -140,10 +140,13 @@ private:
         assert_vector512_equals(lev.vector_y, {16,15,13,11,9,8,7,6,7,8,9,11,13,15,16,17});
 
         lev.compute_last_part_of_stripe(16);
-        assert(lev.row[3] == 15);
+        assert(lev.row[3] == 16);
         assert(lev.row[4] == 15);
         assert(lev.row[11] == 13);
+        assert(lev.row[16] == 11);
         assert(lev.row[lev.row.size() - 1] == 12);
+
+        std::cout << "FunctionalTester: detailed_functional_tests_avx512 passed" << std::endl;
     }
 #endif
 
