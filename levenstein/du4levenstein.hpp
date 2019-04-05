@@ -336,6 +336,7 @@ private:
 		return std::min({first, second, third});
 	}
 
+	/// Extract vector variable from given array from index idx.
 	vector_type get_vector_from_array(const std::vector<data_element> &array, size_t idx) const
 	{
 	    const size_t from_idx = idx;
@@ -349,6 +350,7 @@ private:
         return policy::copy_to_vector(arr);
 	}
 
+	/// Extract vector variable with reversed elements from given array from index idx.
     vector_type get_vector_from_array_reversed(const std::vector<data_element> &array, size_t idx) const
     {
 	    const int from_idx = idx + stripe_size - 1;

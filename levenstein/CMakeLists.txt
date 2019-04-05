@@ -6,8 +6,8 @@ add_compile_options("-Wall")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -D_DEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 
-set(USE_SSE TRUE)
-set(USE_AVX512 FALSE)
+set(USE_SSE FALSE)
+set(USE_AVX512 TRUE)
 
 if (USE_SSE AND USE_AVX512)
     message(FATAL_ERROR "Must specify only one of USE_SSE or USE_AVX512 bool variables")
