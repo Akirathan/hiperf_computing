@@ -468,9 +468,52 @@ struct policy_sse {
 };
 
 
-// TODO
+// TODO: Implement with AVX instructions
 struct policy_avx {
-	constexpr static size_t register_size = 0;
+    using data_element = int;
+    using vector_type = __m128i;
+    constexpr static size_t register_size = 128;
+    constexpr static size_t elements_count_per_register = register_size / (sizeof(data_element) * 8);
+    using array_type = std::array<data_element, elements_count_per_register>;
+
+    static array_type copy_to_array(vector_type vec)
+    {
+        return policy_sse::copy_to_array(vec);
+    }
+
+    static vector_type get_vector_1()
+    {
+        return policy_sse::get_vector_1();
+    }
+
+    static vector_type copy_to_vector(const array_type &array)
+    {
+        return policy_sse::copy_to_vector(array);
+    }
+
+    static vector_type compute_levenstein_distance(vector_type y, vector_type w, vector_type z,
+                                                   vector_type a, vector_type b)
+    {
+        return policy_sse::compute_levenstein_distance(y, w, z, a, b);
+    }
+
+    /// Set last 4 bytes of vector.
+    static void set_last_idx(vector_type &vector, data_element value)
+    {
+        policy_sse::set_last_idx(vector, value);
+    }
+
+    /// Get first 4 bytes of vector.
+    static data_element get_first(vector_type &vector)
+    {
+        return policy_sse::get_first(vector);
+    }
+
+    /// Shifts vector left by 4B - what was on index 1 will be on 0. (Shift toward lower indexes).
+    static void shift_right(vector_type &vector)
+    {
+        policy_sse::shift_right(vector);
+    }
 };
 
 struct policy_avx512 {
