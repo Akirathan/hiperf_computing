@@ -15,6 +15,7 @@ public:
         rectangle_tests();
         std::cout << "\tRectangle tests passed" << std::endl;
         functional_tests();
+        arrays_swap_functional_tests();
         detailed_functional_tests_sse();
 #ifdef USE_AVX512
         detailed_functional_tests_avx512();
@@ -82,6 +83,28 @@ private:
         a1 = {1, 2, 3, 4};
         a2 = {5, 2, 5, 1};
         compare_both(a1.begin(), a1.end(), a2.begin(), a2.end());
+    }
+
+    /**
+     * Checks whether compute(I1,I2) is same as compute(I2,I1).
+     * TODO: This is a temporary function.
+     */
+    void arrays_swap_functional_tests()
+    {
+        std::cout << "\tArrays swap functional tests:" << std::endl;
+        for (size_t i = 0; i < 10; ++i) {
+            std::vector<int> a1 = random_sized_random_vector();
+            std::vector<int> a2 = random_sized_random_vector();
+
+            dummy_levenstein dummy_normal{a1.begin(), a1.end(), a2.begin(), a2.end()};
+            int res_normal = dummy_normal.compute();
+
+            dummy_levenstein dummy_swapped{a2.begin(), a2.end(), a1.begin(), a1.end()};
+            int res_swapped = dummy_swapped.compute();
+
+            assert(res_normal == res_swapped);
+        }
+        std::cout << "\tArrays swap functional tests passed" << std::endl;
     }
 
     void detailed_functional_tests_sse()
