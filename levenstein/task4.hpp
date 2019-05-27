@@ -24,7 +24,14 @@ template< typename D, typename P>
 struct generator_4 {
 
 	typedef D data_type;
-	typedef data_element check_type;	// a kind of checksum
+	struct check_type {	// a kind of checksum
+		check_type(std::size_t a, std::size_t b, std::uint64_t chka, std::uint64_t chkb)
+			: asize(a), bsize(b), chka(chka), chkb(chkb)
+		{}
+
+		std::size_t asize, bsize;
+		std::uint64_t chka, chkb;
+	};
 		
 	static std::string name() { return D::name() + "_" + P::name(); }
 
@@ -42,7 +49,22 @@ struct generator_4 {
 
 	check_type check() const
 	{
-		return check_type( s1_ + s2_);
+		return check_type( s1_, s2_, chksum(v1_.begin(), v1_.end()), chksum(v2_.begin(), v2_.end()));
+	}
+
+	template< typename IT>
+	static std::uint64_t chksum(IT b, IT e)
+	{
+		std::uint64_t s = 0;
+
+		for (;b != e; ++ b)
+		{
+			auto x = * b;
+
+			s = s * 3 + (std::uint64_t)x;
+		}
+
+		return s;
 	}
 
 	const D & data() const
@@ -126,34 +148,31 @@ public:
 	}
 
 	mutable L loew_;
+	mutable data_element result_;
 };
 
+template< typename P>
 struct task_4 {
 
-	static std::string name() { return "levenstein"; }
+	static std::string name() { return "levenstein<" + P::name() + ">"; }
 
 	template< bool cold, bool debug, typename D, typename C>
 	static void run( const D & data, const C & check)
 	{
-		data_element s = data.loew_.compute();
-
-		// assert( s == check);
+		data.result_ = data.loew_.compute();
 	}
-
 
 	template< bool debug, typename D, typename C>
 	static void initial_check( logger & log, const D & data, const C & check)
 	{
-		/*
-		log.ss() << "CHKSUM A[" << data.a.vsize() << "," << data.a.hsize() << "] = " << chksum( data.a) << std::endl;
-		log.ss() << "CHKSUM B[" << data.b.vsize() << "," << data.b.hsize() << "] = " << chksum( data.b) << std::endl;
-		*/
+		log.ss() << "CHKSUM A[" << check.asize << "] = " << check.chka << std::endl;
+		log.ss() << "CHKSUM B[" << check.bsize << "] = " << check.chkb << std::endl;
 	}
 
 	template< bool debug, typename D, typename C>
 	static void final_check( logger & log, const D & data, const C & check)
 	{
-
+		log.ss() << "DISTANCE = " << data.result_ << std::endl;
 	}
 };
 

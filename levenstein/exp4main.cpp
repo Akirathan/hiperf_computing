@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 ///////////////////////////////
 
@@ -32,7 +33,7 @@ void use( generator_list< param_type_4, time_complexity> & gl)
 {
 	using data = data_4< levenstein< typename U::policy>>;
 
-	gl.push_back( make_generic_generator_task< generator_4< data, policy_random>, task_4, param_type_4>());
+	gl.push_back( make_generic_generator_task< generator_4< data, policy_random>, task_4< U>, param_type_4>());
 }
 
 ///////////////////////////////
@@ -102,20 +103,19 @@ int main( int argc, char * * argv)
 			gl.push_back_size( param_type_4( outer, inner), target_complexity);
 		}
 	}
-/*
-#ifdef _DEBUG
-	std::ofstream oss( "exp4.debug.tsv");
-#else
-	std::ofstream oss( "exp4.tsv");
-#endif
-*/
-	logger log( std::cout, std::cerr);
+
+	std::ostringstream serr;
+
+	logger log(std::cout, serr);
 
 #ifdef _DEBUG
-	gl.run< true>( log);
+	gl.run< true>(log);
 #else
-	gl.run< false>( log);
+	gl.run< false>(log);
 #endif
+
+	std::cerr << serr.str();
+
 	return 0;
 }
 
