@@ -10,8 +10,6 @@
 #include <smmintrin.h>
 #include <immintrin.h>
 
-#include "dummy_levenstein.hpp"
-
 template <typename policy>
 class LevensteinTester;
 

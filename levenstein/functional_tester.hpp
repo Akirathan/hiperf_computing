@@ -13,7 +13,7 @@ public:
     void run_all_tests()
     {
         rectangle_tests();
-        std::cout << "Rectangle tests passed" << std::endl;
+        std::cout << "\tRectangle tests passed" << std::endl;
         functional_tests();
         detailed_functional_tests_sse();
 #ifdef USE_AVX512
@@ -112,7 +112,7 @@ private:
         assert(lev.row[4] == 3);
         assert(lev.row[5] == 4);
 
-        std::cout << "FunctionalTester: detailed_functional_tests_sse passed" << std::endl;
+        std::cout << "\tFunctionalTester: detailed_functional_tests_sse passed" << std::endl;
     }
 
 #ifdef USE_AVX512
@@ -146,7 +146,7 @@ private:
         assert(lev.row[16] == 11);
         assert(lev.row[lev.row.size() - 1] == 12);
 
-        std::cout << "FunctionalTester: detailed_functional_tests_avx512 passed" << std::endl;
+        std::cout << "\tFunctionalTester: detailed_functional_tests_avx512 passed" << std::endl;
     }
 #endif
 
@@ -172,13 +172,14 @@ private:
     void bigger_functional_tests()
     {
         for (size_t i = 0; i < 5; ++i) {
-            std::vector<int> vec1 = random_vector();
-            std::vector<int> vec2 = random_vector();
+            std::vector<int> vec1 = random_sized_random_vector();
+            std::vector<int> vec2 = random_sized_random_vector();
 
+            std::cout << "\tComparing vector of sizes " << vec1.size() << ", " << vec2.size() << std::endl;
             compare_both(vec1.begin(), vec1.end(), vec2.begin(), vec2.end());
         }
 
-        std::cout << "FunctionalTester: bigger_functional_tests passed" << std::endl;
+        std::cout << "\tFunctionalTester: bigger_functional_tests passed" << std::endl;
     }
 
     template <typename It1, typename It2>
@@ -212,7 +213,7 @@ private:
         return dummy_impl.compute();
     }
 
-    std::vector<int> random_vector() const
+    std::vector<int> random_sized_random_vector() const
     {
         size_t size = 0;
         while (size < 10) {
