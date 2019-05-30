@@ -4,6 +4,10 @@
 #include <initializer_list>
 #include <cassert>
 #include <iostream>
+#include <random>
+#include <algorithm>
+#include <sstream>
+#include "exception.hpp"
 #include "du4levenstein.hpp"
 #include "dummy_levenstein.hpp"
 
@@ -16,6 +20,7 @@ public:
         std::cout << "\tRectangle tests passed" << std::endl;
         functional_tests();
         arrays_swap_functional_tests();
+        bednarek_random_tests();
         detailed_functional_tests_sse();
 #ifdef USE_AVX512
         detailed_functional_tests_avx512();
@@ -105,6 +110,67 @@ private:
             assert(res_normal == res_swapped);
         }
         std::cout << "\tArrays swap functional tests passed" << std::endl;
+    }
+
+    void bednarek_random_tests()
+    {
+        std::cout << "\tBednarek's random tests started" << std::endl;
+
+        const std::vector<std::pair<size_t, size_t>> sizes = {
+                {512, 64}, {4096, 64}, {4096, 512}, {32768, 64}, {32768, 512}, {32768, 4096}
+        };
+
+        /*const std::vector<std::pair<size_t, size_t>> sizes = {
+                {512, 64}
+        };*/
+        const size_t iters = 2;
+
+        std::uniform_int_distribution<int> ui{0, 255};
+        std::mt19937 engine;
+
+        for (auto &&size : sizes) {
+            // Reset engine.
+            engine.seed();
+
+            std::vector<int> vec_a(size.first);
+            std::vector<int> vec_b(size.second);
+            std::generate(vec_a.begin(), vec_a.end(), [&ui, &engine] {
+                return ui(engine);
+            });
+            std::generate(vec_b.begin(), vec_b.end(), [&ui, &engine] {
+                return ui(engine);
+            });
+
+            std::cout << "\t\tCHKSUM A[" << vec_a.size() << "] = " << bednarek_chksum(vec_a.begin(), vec_a.end()) << std::endl;
+            std::cout << "\t\tCHKSUM B[" << vec_b.size() << "] = " << bednarek_chksum(vec_b.begin(), vec_b.end()) << std::endl;
+
+            levenstein<policy> std_impl{vec_a.begin(), vec_a.end(), vec_b.begin(), vec_b.end()};
+            dummy_levenstein dummy_impl{vec_a.begin(), vec_a.end(), vec_b.begin(), vec_b.end()};
+            for (size_t i = 0; i < iters; ++i) {
+                int std_res = std_impl.compute();
+                int dummy_res = dummy_impl.compute();
+                if (std_res != dummy_res) {
+                    std::stringstream ss;
+                    ss << "Iteration=" << i <<", std_result=" << std_res << ", dummy_result=" << dummy_res;
+                    throw Exception{ss.str()};
+                }
+            }
+        }
+
+        std::cout << "\tBednarek's random tests passed" << std::endl;
+    }
+
+    template<typename IT>
+    static std::uint64_t bednarek_chksum(IT b, IT e)
+    {
+        std::uint64_t s = 0;
+
+        for (; b != e; ++b) {
+            auto x = *b;
+            s = s * 3 + (std::uint64_t) x;
+        }
+
+        return s;
     }
 
     void detailed_functional_tests_sse()
@@ -206,10 +272,12 @@ private:
     }
 
     template <typename It1, typename It2>
-    void compare_both(It1 i1b, It1 i1e, It2 i2b, It2 i2e)
+    void compare_both(It1 i1b, It1 i1e, It2 i2b, It2 i2e, bool verbose = false)
     {
         int std_impl_res = run_levenstein(i1b, i1e, i2b, i2e);
         int dummy_impl_res = run_dummy(i1b, i1e, i2b, i2e);
+        if (verbose)
+            std::cout << "\t\tMy distance=" << std_impl_res << ", dummy distance=" << dummy_impl_res << std::endl;
         assert(std_impl_res == dummy_impl_res);
     }
 

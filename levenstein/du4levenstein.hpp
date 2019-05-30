@@ -42,6 +42,8 @@ public:
 
 	data_element compute()
 	{
+	    reinit();
+
 	    size_t bottom_row_idx = stripe_size;
 		for (; bottom_row_idx < total_rows_count; bottom_row_idx += stripe_size) {
 			compute_stripe(bottom_row_idx);
@@ -136,6 +138,17 @@ private:
     private:
         std::vector<std::vector<data_element>> rectangle;
     };
+
+    /**
+     * Reinitializes before next computation.
+     */
+    void reinit()
+    {
+        row.resize(total_cols_count);
+        for (size_t i = 0; i < row.size(); ++i) {
+            row[i] = i;
+        }
+    }
 
 	/// @param bottom_row_idx lower index of stripe's row.
 	void compute_stripe(size_t bottom_row_idx)
