@@ -27,6 +27,7 @@ set (SOURCES
         exp4main.cpp
         task4.hpp
         testbed.hpp
+        exception.hpp
         )
 
 add_executable(levenstein ${SOURCES})
