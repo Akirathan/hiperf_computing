@@ -52,7 +52,7 @@ public:
 		return v_[ i * n_ + j];
 	}
 
-	void assign_mul( const matrix & a, const matrix & b)
+	void assign_mul_dummy( const matrix & a, const matrix & b)
 	{
 		std::size_t L = m_;
 		assert( L == a.m_);
@@ -79,6 +79,36 @@ public:
 						matrix_element(ax + bv[k * M + j]));
 			}
 	}
+
+	void assign_mul( const matrix & a, const matrix & b)
+    {
+        std::size_t L = m_;
+        assert( L == a.m_);
+        std::size_t M = n_;
+        assert( M == b.n_);
+        std::size_t N = a.n_;
+        assert( N == b.m_);
+
+        matrix_element * RESTRICT cv = v_.data();
+        const matrix_element * RESTRICT av = a.v_.data();
+        const matrix_element * RESTRICT bv = b.v_.data();
+
+        for (std::size_t i = 0; i < L; ++i)
+            for (std::size_t j = 0; j < M; ++j)
+                cv[i * M + j] = 0xFFFF;
+
+        for (std::size_t i = 0; i < L; ++i) {
+            for (std::size_t k = 0; k < N; ++k) {
+                matrix_element ax = av[i * N + k];
+                for (std::size_t j = 0; j < M; ++j) {
+                    cv[i*M + j] = std::min(cv[i*M + j],
+                            matrix_element{static_cast<matrix_element>(ax + bv[k*M + j])}
+                            );
+                }
+            }
+        }
+    }
+
 private:
 	std::vector< matrix_element> v_;
 	std::size_t m_, n_;
