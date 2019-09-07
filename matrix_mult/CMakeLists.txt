@@ -2,9 +2,17 @@ cmake_minimum_required(VERSION 3.14)
 project(matrix_mult)
 
 add_compile_options("-Wall" "-Wextra")
+set(CLANG_FLAGS "-Rpass-analysis=loop-vectorize -Rpass=loop-vectorize")
+set(GCC_FLAGS "-march=native -fopt-info-vec-all")
+
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS_RELEASE " -O2")
-set(CMAKE_CXX_FLAGS_DEBUG " -g -D _DEBUG")
+
+set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 ")
+string(APPEND CMAKE_CXX_FLAGS_RELEASE ${CLANG_FLAGS})
+
+set(CMAKE_CXX_FLAGS_DEBUG " -g -D _DEBUG ")
+string(APPEND CMAKE_CXX_FLAGS_DEBUG ${CLANG_FLAGS})
+
 
 
 add_compile_definitions("BOOST_ALL_DYN_LINK")

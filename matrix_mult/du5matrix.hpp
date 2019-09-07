@@ -12,7 +12,7 @@
 #ifdef _MSC_VER
 #define RESTRICT __restrict
 #else
-#define RESTRICT 
+#define RESTRICT __restrict__
 #endif
 
 template< typename policy>
@@ -30,6 +30,7 @@ public:
 	matrix( std::size_t m, std::size_t n)
 		: m_(m), n_(n), v_(m * n, matrix_element{})
 	{
+	    // TODO: Align to size which is multiply of 64.
 	}
 
 	std::size_t vsize() const
@@ -82,11 +83,11 @@ public:
 
 	void assign_mul( const matrix & a, const matrix & b)
     {
-        std::size_t L = m_;
+        const std::size_t L = m_;
         assert( L == a.m_);
-        std::size_t M = n_;
+        const std::size_t M = n_;
         assert( M == b.n_);
-        std::size_t N = a.n_;
+        const std::size_t N = a.n_;
         assert( N == b.m_);
 
         matrix_element * RESTRICT cv = v_.data();
@@ -97,19 +98,32 @@ public:
             for (std::size_t j = 0; j < M; ++j)
                 cv[i * M + j] = 0xFFFF;
 
-        for (std::size_t i = 0; i < L; ++i) {
-            for (std::size_t k = 0; k < N; ++k) {
-                matrix_element ax = av[i * N + k];
-                for (std::size_t j = 0; j < M; ++j) {
-                    cv[i*M + j] = std::min(cv[i*M + j],
-                            matrix_element{static_cast<matrix_element>(ax + bv[k*M + j])}
-                            );
+        for (std::size_t i = 0; i < L; i += inner_rect_size) {
+            for (std::size_t k = 0; k < N; k += inner_rect_size) {
+                for (std::size_t j = 0; j < M; j += inner_rect_size) {
+                    for (std::size_t inner_i = 0; inner_i < inner_rect_size; ++inner_i) {
+                        for (std::size_t inner_k = 0; inner_k < inner_rect_size; ++inner_k) {
+                            for (std::size_t inner_j = 0; inner_j < inner_rect_size; ++inner_j) {
+                                std::size_t total_i = i + inner_i;
+                                std::size_t total_j = j + inner_j;
+                                std::size_t total_k = k + inner_k;
+                                std::size_t a_idx = total_i * N + total_k; // A[i,k]
+                                std::size_t b_idx = total_k * M + total_j; // B[k,j]
+                                std::size_t c_idx = total_i * M + total_j; // C[i,j]
+                                matrix_element ax = av[a_idx];
+                                matrix_element bx = bv[b_idx];
+                                // C[i,j] = min(C[i,j], A[i,k] + B[k,j])
+                                cv[c_idx] = cv[c_idx] < ax + bx ? cv[c_idx] : ax + bx;
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 
 private:
+    static constexpr std::size_t inner_rect_size = 64;
 	std::vector< matrix_element> v_;
 	std::size_t m_, n_;
 };
