@@ -98,25 +98,16 @@ public:
             for (std::size_t j = 0; j < M; ++j)
                 cv[i * M + j] = 0xFFFF;
 
-        for (std::size_t i = 0; i < L; i += inner_rect_size) {
-            for (std::size_t k = 0; k < N; k += inner_rect_size) {
-                for (std::size_t j = 0; j < M; j += inner_rect_size) {
-                    for (std::size_t inner_i = 0; inner_i < inner_rect_size; ++inner_i) {
-                        for (std::size_t inner_k = 0; inner_k < inner_rect_size; ++inner_k) {
-                            for (std::size_t inner_j = 0; inner_j < inner_rect_size; ++inner_j) {
-                                std::size_t total_i = i + inner_i;
-                                std::size_t total_j = j + inner_j;
-                                std::size_t total_k = k + inner_k;
-                                std::size_t a_idx = total_i * N + total_k; // A[i,k]
-                                std::size_t b_idx = total_k * M + total_j; // B[k,j]
-                                std::size_t c_idx = total_i * M + total_j; // C[i,j]
-                                matrix_element ax = av[a_idx];
-                                matrix_element bx = bv[b_idx];
-                                // C[i,j] = min(C[i,j], A[i,k] + B[k,j])
-                                cv[c_idx] = cv[c_idx] < ax + bx ? cv[c_idx] : ax + bx;
-                            }
-                        }
-                    }
+        for (std::size_t i = 0; i < L; i++) {
+            for (std::size_t k = 0; k < N; k++) {
+                for (std::size_t j = 0; j < M; j++) {
+                    std::size_t a_idx = i * N + k; // A[i,k]
+                    std::size_t b_idx = k * M + j; // B[k,j]
+                    std::size_t c_idx = i * M + j; // C[i,j]
+                    matrix_element ax = av[a_idx];
+                    matrix_element bx = bv[b_idx];
+                    // C[i,j] = min(C[i,j], A[i,k] + B[k,j])
+                    cv[c_idx] = cv[c_idx] < ax + bx ? cv[c_idx] : ax + bx;
                 }
             }
         }
