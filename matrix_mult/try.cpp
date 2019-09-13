@@ -1,10 +1,22 @@
 #include <memory>
-#include <vector>
+#include <cstdlib>
 #include <iostream>
 #include "du5matrix.hpp"
 
+template <typename policy>
+static matrix<policy> allocate_huge_matrix(size_t height, size_t width)
+{
+    matrix<policy> mtrx{height, width};
+    for (size_t i = 0; i < height; i++) {
+        for (size_t j = 0; j < width; j++) {
+            uint16_t element = std::rand();
+            mtrx.set(i, j, element);
+        }
+    }
+    return mtrx;
+}
 
-int main()
+static void matrix_mult_try()
 {
     matrix<policy_sse> a{2, 2};
     matrix<policy_sse> b{2, 2};
@@ -25,4 +37,9 @@ int main()
             std::cout << c.get(i, j) << " ";
         std::cout << std::endl;
     }
+}
+
+int main()
+{
+    auto mtrx = allocate_huge_matrix<policy_sse>(6000, 2000);
 }

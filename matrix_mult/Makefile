@@ -26,7 +26,7 @@ HW_GCCOPTS = -msse4.2 -mavx2 -mavx512f -mavx512pf -mavx512er -mavx512cd -D USE_A
 HW_RUNOPTS = sse avx avx512
 endif
 
-GXX_FLAGS = -ggdb -O3 -std=c++17 -fopt-info-vec -fopt-info-vec-missed
+GXX_FLAGS = -ggdb -O3 -std=c++17 -fopt-info-vec-all
 
 #############################################################################
 

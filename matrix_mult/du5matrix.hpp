@@ -2,6 +2,7 @@
 #define matrix_h_
 
 #include <cstddef>
+#include <cstdlib>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -28,10 +29,22 @@ public:
 	}
 
 	matrix( std::size_t m, std::size_t n)
-		: m_(m), n_(n), v_(m * n, matrix_element{})
+		: m_(m), n_(n)
 	{
-	    // TODO: Align to size which is multiply of 64.
+	    std::size_t size = m * n;
+	    if (!is_aligned(size)) {
+	        std::size_t new_size = align(size);
+	        size = new_size;
+	    }
+	    v_ = static_cast<matrix_element *>(std::aligned_alloc(policy::alignment, size * sizeof(matrix_element)));
+	    assert(v_ != nullptr);
+	    assert(is_aligned(reinterpret_cast<uintptr_t>(v_)));
 	}
+
+	~matrix()
+    {
+	    std::free(v_);
+    }
 
 	std::size_t vsize() const
 	{
@@ -53,34 +66,6 @@ public:
 		return v_[ i * n_ + j];
 	}
 
-	void assign_mul_dummy( const matrix & a, const matrix & b)
-	{
-		std::size_t L = m_;
-		assert( L == a.m_);
-		std::size_t M = n_;
-		assert( M == b.n_);
-		std::size_t N = a.n_;
-		assert( N == b.m_);
-
-		matrix_element * RESTRICT cv = v_.data();
-		const matrix_element * RESTRICT av = a.v_.data();
-		const matrix_element * RESTRICT bv = b.v_.data();
-
-		for( std::size_t i = 0; i < L; ++ i)
-			for (std::size_t j = 0; j < M; ++j)
-			{
-				cv[i * M + j] = 0xFFFF;
-			}
-		for (std::size_t i = 0; i < L; ++i)
-			for (std::size_t k = 0; k < N; ++k)
-			{
-				auto ax = av[i * N + k];
-				for (std::size_t j = 0; j < M; ++j)
-					cv[i * M + j] = std::min(cv[i * M + j],
-						matrix_element(ax + bv[k * M + j]));
-			}
-	}
-
 	void assign_mul( const matrix & a, const matrix & b)
     {
         const std::size_t L = m_;
@@ -90,10 +75,11 @@ public:
         const std::size_t N = a.n_;
         assert( N == b.m_);
 
-        matrix_element * RESTRICT cv = v_.data();
-        const matrix_element * RESTRICT av = a.v_.data();
-        const matrix_element * RESTRICT bv = b.v_.data();
+        __attribute__ ((aligned(policy::alignment))) matrix_element * RESTRICT cv = v_;
+        __attribute__ ((aligned(policy::alignment))) const matrix_element * RESTRICT av = a.v_;
+        __attribute__ ((aligned(policy::alignment))) const matrix_element * RESTRICT bv = b.v_;
 
+        // TODO: Move to constructor?
         for (std::size_t i = 0; i < L; ++i)
             for (std::size_t j = 0; j < M; ++j)
                 cv[i * M + j] = 0xFFFF;
@@ -114,18 +100,32 @@ public:
     }
 
 private:
-    static constexpr std::size_t inner_rect_size = 64;
-	std::vector< matrix_element> v_;
+	matrix_element *v_;
 	std::size_t m_, n_;
+
+	bool is_aligned(uintptr_t addr) const
+    {
+	    return (addr % policy::alignment) == 0;
+    }
+
+    uintptr_t align(uintptr_t addr) const
+    {
+	    while (!is_aligned(addr))
+	        ++addr;
+	    return addr;
+    }
 };
 
 struct policy_sse {
+    static constexpr std::size_t alignment = 8;
 };
 
 struct policy_avx {
+    static constexpr std::size_t alignment = 16;
 };
 
 struct policy_avx512 {
+    static constexpr std::size_t alignment = 32;
 };
 
 #endif
